@@ -59,13 +59,23 @@ Prefer another host? Download this repository as a ZIP and drag the unzipped fol
 
 Anyone with the link can read a published sheet. Do not put private information in it.
 
-### 3. Switch on the order form (orders arrive in your email)
-1. Make a free account at https://formspree.io and create a new form. Use your own email address.
-2. Copy the form link, which looks like `https://formspree.io/f/abcdwxyz`.
-3. Paste it between the quote marks of `formEndpoint: ""` in `settings.js` and commit.
-4. Place a test order on your site and check that the email arrives. Formspree asks you to confirm your email address first.
+### 3. Orders and the admin page (your own database)
+Orders are saved in your Firebase project and listed on a password-protected page at `https://<your-site>/admin`.
 
-Until this step is done, the form stays switched off and customers are asked to message you on Instagram, so no order can get lost.
+One-time setup:
+1. Put the admin email in `admin-email.txt` (one line, nothing else). Only this email can read orders.
+2. In the Firebase console open **Build → Authentication → Get started**, choose **Email/Password**, switch it on and save.
+3. Still in Authentication, open **Users → Add user**. Enter the admin email and a password you choose.
+4. Deploy (any push to `main`, or Actions → Run workflow). The deploy creates the database, publishes the security rules and connects the website.
+5. Place a test order on the site, then sign in at `/admin` to see it.
+
+On the admin page you can search orders, filter by status, change a status (新訂單, 已確認, 已完成, 已取消) and export a CSV file.
+
+Who can do what (`firestore.rules`): anyone can add an order, only the admin email can read or change one, and nobody can delete one.
+
+If the database cannot be created automatically, open **Build → Firestore Database → Create database**, choose a location and **production mode**, then run the deploy again.
+
+Optional: instead of Firebase you can put a Formspree link in `formEndpoint` in `settings.js`.
 
 ## Daily use
 - **Item sold out:** type 售罄 in the 狀態 column. It is greyed out and cannot be ordered.
@@ -75,6 +85,8 @@ Until this step is done, the form stays switched off and customers are asked to 
 
 ## Files
 - `index.html`, `styles.css`, `script.js`: the page (you don't need to touch these)
-- `settings.js`: shop details and the two links above
+- `settings.js`: shop details and the product sheet link
+- `admin.html`, `admin.js`, `admin.css`: the admin page
+- `firestore.rules`, `firebase.json`, `scripts/`, `.github/`: order security rules and the automatic deploy
 - `products-template.csv`: the starting product list for your Google Sheet
 - `assets/`: logo files. `images/`: album photos.

@@ -169,6 +169,27 @@
 
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; errorEl.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
 
+  // Orders go to the shop's own Firebase database (viewed on /admin).
+  // If Firebase is not set up, an optional Formspree link in settings.js is used instead.
+  var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
+  function sendOrder(o) {
+    if (window.FIREBASE_CONFIG) {
+      return Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
+        var db = m[1].getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG));
+        return m[1].addDoc(m[1].collection(db, "orders"), {
+          orderNo: o.orderNo, name: o.name, contact: o.contact, delivery: o.delivery, address: o.address, notes: o.notes,
+          items: o.items, total: o.total, status: "new", createdAt: m[1].serverTimestamp()
+        });
+      });
+    }
+    return fetch(S.formEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ _subject: "新訂單 " + o.orderNo + " · " + o.name, orderNo: o.orderNo, name: o.name, contact: o.contact,
+        delivery: o.delivery, address: o.address, notes: o.notes, total: money(o.total), order: o.text })
+    }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); });
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var name = $("#f-name").value.trim(), contact = $("#f-contact").value.trim(), address = $("#f-address").value.trim();
@@ -181,20 +202,16 @@
     errorEl.hidden = true;
 
     var total = list.reduce(function (s, x) { return s + x.p.price * x.q; }, 0);
-    var orderNo = "MH-" + Date.now().toString(36).slice(-5).toUpperCase();
+    var orderNo = "MH-" + Date.now().toString(36).slice(-5).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
     var itemsText = list.map(function (x) { return "- " + x.p.group + " " + x.p.name + " x" + x.q + " (" + money(x.p.price * x.q) + ")"; }).join("\n");
     var text = ["訂單編號：" + orderNo, "姓名：" + name, "聯絡：" + contact, "交收：" + d.name,
       d.pickup ? "" : "地址：" + address, "貨品：\n" + itemsText, "貨品總額（未計運費）：" + money(total),
       notes ? "備註：" + notes : ""].filter(Boolean).join("\n");
 
     var btn = $("#submit"); btn.disabled = true; btn.textContent = "提交中…";
-    fetch(S.formEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ _subject: "新訂單 " + orderNo + " · " + name, orderNo: orderNo, name: name, contact: contact,
-        delivery: d.name, address: address, notes: notes, total: money(total), order: text })
-    }).then(function (r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
+    var order = { orderNo: orderNo, name: name, contact: contact, delivery: d.name, address: d.pickup ? "" : address, notes: notes,
+      items: list.map(function (x) { return { group: x.p.group, name: x.p.name, price: x.p.price, qty: x.q }; }), total: total, text: text };
+    sendOrder(order).then(function () {
       showDone(orderNo, contact, list, total, d);
     }).catch(function () {
       showError("提交失敗。請檢查網絡後再試，或在 Instagram 私訊 @" + S.instagram + "。");
@@ -215,8 +232,8 @@
     form.reset(); renderItems(); syncDelivery(); $("#done").hidden = true; form.hidden = false;
   });
 
-  // form switched off until the owner connects a form service
-  if (!S.formEndpoint) {
+  // form switched off until orders have somewhere to go
+  if (!window.FIREBASE_CONFIG && !S.formEndpoint) {
     $("#closed").hidden = false; form.hidden = true;
     $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; });
   }

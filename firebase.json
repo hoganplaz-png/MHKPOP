@@ -1,9 +1,15 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": ".",
     "cleanUrls": true,
     "ignore": [
       "firebase.json",
+      "firestore.rules",
+      "admin-email.txt",
+      "scripts/**",
       "**/.*",
       "**/node_modules/**",
       "README.md",
@@ -17,6 +23,10 @@
       {
         "source": "**/*.@(png|jpg|jpeg|webp|svg)",
         "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+      },
+      {
+        "source": "/admin",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
       }
     ]
   }

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>MHKPOP 訂單管理</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="/"><img src="assets/logo.png" alt="" width="40" height="39"><span>MHKPOP 訂單管理</span></a>
+    <div class="who" id="who" hidden>
+      <span id="who-email"></span>
+      <button type="button" class="btn btn-line" id="signout">登出</button>
+    </div>
+  </header>
+
+  <main>
+    <p class="notice" id="notice" hidden></p>
+
+    <section class="login" id="login" hidden>
+      <h1>管理員登入</h1>
+      <form id="login-form">
+        <label for="email">電郵</label>
+        <input id="email" class="field" type="email" autocomplete="username" required>
+        <label for="password">密碼</label>
+        <input id="password" class="field" type="password" autocomplete="current-password" required>
+        <p class="error" id="login-error" role="alert" hidden></p>
+        <button class="btn btn-solid" type="submit" id="login-btn">登入</button>
+      </form>
+    </section>
+
+    <section class="dash" id="dash" hidden>
+      <div class="tools">
+        <div class="chips" id="filters" role="group" aria-label="按狀態篩選"></div>
+        <div class="tools-right">
+          <label class="sr" for="search">搜尋訂單</label>
+          <input id="search" class="field" type="search" placeholder="搜尋姓名、聯絡方式、訂單編號">
+          <button type="button" class="btn btn-line" id="csv">匯出 CSV</button>
+        </div>
+      </div>
+      <p class="empty" id="empty" hidden>未有訂單。</p>
+      <div class="orders" id="orders"></div>
+    </section>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
