@@ -71,6 +71,13 @@ jobs:
         run: |
           FB="npx --yes firebase-tools@13.35.1"
           if [ "$ORDERS" != "true" ]; then
+            git checkout -- firebase-config.js
+            $FB deploy --only hosting --project "$PID" --non-interactive
+            exit 0
+          fi
+          # If the shop owner publishes the rules by hand in the Firebase console, the file
+          # rules-manual.txt exists and only the website is deployed (with the order form on).
+          if [ -f rules-manual.txt ]; then
             $FB deploy --only hosting --project "$PID" --non-interactive
             exit 0
           fi
