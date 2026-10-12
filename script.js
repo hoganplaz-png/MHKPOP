@@ -8,6 +8,7 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   };
+  function dn(g, n) { g = String(g || "").trim(); n = String(n || "").trim(); return !g || n.toLowerCase().indexOf(g.toLowerCase()) >= 0 ? n : g + " " + n; }
   var money = function (n) { return "HK$" + n; };
   var T = function (k, vars) { return window.MHT.t(k, undefined, vars); };
 
@@ -41,7 +42,7 @@
       var fs = c.fs;
       return Promise.all([
         fs.getDoc(fs.doc(c.db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
-        fs.getDocs(fs.query(fs.collection(c.db, "products"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; })
+        fs.getDocs(fs.query(fs.collection(c.db, "products"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return null; })
       ]).then(function (r) { return { site: r[0], products: r[1] }; });
     }).catch(function () { return null; });
   }
@@ -89,7 +90,8 @@
     return out;
   }
 
-  var products = [];
+  var products = [], allProducts = [];
+var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   var qty = {};
   var activeGroup = "";
 
@@ -98,8 +100,17 @@
     if (s === "hidden" || s.indexOf("隱藏") >= 0) return "hidden";
     if (s.indexOf("售罄") >= 0 || s.indexOf("sold") >= 0) return "sold";
     if (s.indexOf("門市") >= 0 || s.indexOf("store") >= 0) return "store";
+    if (stockOut(p)) return "sold";
     return "ok";
   }
+  // a product with a stock number sells out by itself at 0 (pre-order products keep selling)
+  function tracked(p) { return typeof p.stock === "number"; }
+  function stockOut(p) { return tracked(p) && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true); }
+  function byId(id) { return allProducts.filter(function (p) { return p.id === id; })[0]; }
+  function addonsFor(p) {
+    return (p.addons || []).map(function (a) { var t = byId(a.id); return t ? { t: t, price: Number(a.price) || 0 } : null; }).filter(Boolean);
+  }
+  function addonAvailable(t) { return (t.status || "") !== "sold" && !stockOut(t); }
   // How a product can be bought: stock = 格仔舖現貨, preorder = 訂購, sf = 順豐. Older products without a setting get stock + sf.
   var CH = ["stock", "preorder", "sf"];
   function chOf(p) {
@@ -111,7 +122,9 @@
   function chanBadges(p) {
     var h = chOf(p).map(function (c) { return '<span class="chan chan-' + c + '">' + esc(T("chan." + c)) + "</span>"; }).join("");
     if (chOf(p).indexOf("preorder") >= 0 && p.eta) h += '<span class="eta">' + esc(T("chan.eta", { eta: p.eta })) + "</span>";
-    return '<div class="chans">' + h + "</div>";
+    if (tracked(p) && p.stock > 0 && p.stock <= 5 && chOf(p).indexOf("stock") >= 0) h += '<span class="eta low">' + esc(T("shelf.left", { n: p.stock })) + "</span>";
+    var ad = addonsFor(p).filter(function (a) { return addonAvailable(a.t); });
+    return '<div class="chans">' + h + "</div>" + (ad.length ? '<div class="addon-note">' + ad.map(function (a) { return esc(T("addon.card", { name: a.t.name, price: a.price })); }).join("<br>") + "</div>" : "");
   }
   function imgSrc(v) { return /^(https?:)?\/\//.test(v) || v.charAt(0) === "/" || /^data:image\/(jpeg|png|webp);base64,/.test(v) ? v : "images/" + v; }
 
@@ -182,16 +195,52 @@
       if (c.indexOf("preorder") >= 0 && p.eta) line += " · " + T("chan.eta", { eta: p.eta });
       return '<div class="item' + (off ? " is-off" : "") + '"><div class="item-main"><span class="caps">' + esc(p.group) + "</span><small>" + esc(p.name) + "</small>" +
         '<small class="chan-line">' + esc(line) + "</small>" + modeSel + "</div>" +
-        '<div class="item-price">' + money(p.price) + "</div>" + control + "</div>";
+        '<div class="item-price">' + money(p.price) + "</div>" + control + '<div class="addons" id="ad' + i + '"></div></div>';
     }).join("");
-    qty = {}; modes = {}; updateTotal(); syncDelivery();
+    qty = {}; modes = {}; addonQty = {}; updateTotal(); syncDelivery();
   }
 
+  // units of a product already in the order (as itself or as an add-on)
+  function usedOf(pid) {
+    var n = 0;
+    products.forEach(function (p, j) { if (p.id === pid) n += qty[j] || 0; });
+    Object.keys(addonQty).forEach(function (k) { if (k.split("|")[1] === pid) n += addonQty[k]; });
+    return n;
+  }
+  function canAdd(p, mode) { return !tracked(p) || mode === "preorder" || usedOf(p.id) < p.stock; }
+  function renderAddons(i) {
+    var box = $("#ad" + i); if (!box) return;
+    var q = qty[i] || 0;
+    box.innerHTML = q ? addonsFor(products[i]).filter(function (a) { return addonAvailable(a.t); }).map(function (a) {
+      var n = addonQty[i + "|" + a.t.id] || 0;
+      return '<div class="addon-line"><span>' + esc(T("addon.line", { name: a.t.name, price: a.price })) + '</span><div class="qty"><button type="button" data-ai="' + i + '" data-at="' + esc(a.t.id) + '" data-d="-1" aria-label="' + esc(T("addon.dec", { name: a.t.name })) + '">−</button>' +
+        "<output>" + n + '</output><button type="button" data-ai="' + i + '" data-at="' + esc(a.t.id) + '" data-d="1" aria-label="' + esc(T("addon.inc", { name: a.t.name })) + '">+</button></div></div>';
+    }).join("") : "";
+  }
+  function trimAddons(i) {
+    Object.keys(addonQty).forEach(function (k) {
+      if (k.split("|")[0] !== String(i)) return;
+      if (addonQty[k] > (qty[i] || 0)) addonQty[k] = qty[i] || 0;
+      if (!addonQty[k]) delete addonQty[k];
+    });
+  }
   $("#items").addEventListener("click", function (e) {
+    var ab = e.target.closest("button[data-ai]");
+    if (ab) {
+      var ai = +ab.dataset.ai, t = byId(ab.dataset.at), key = ai + "|" + ab.dataset.at, d = +ab.dataset.d;
+      var next = Math.max(0, (addonQty[key] || 0) + d);
+      if (d > 0 && next > (qty[ai] || 0)) return showError(T("addon.limit"));
+      if (d > 0 && t && !canAdd(t, defMode(t))) return showError(T("err.stock", { name: t.name, n: Math.max(t.stock, 0) }));
+      if (next) addonQty[key] = next; else delete addonQty[key];
+      errorEl.hidden = true; renderAddons(ai); updateTotal(); syncDelivery();
+      return;
+    }
     var b = e.target.closest("button[data-i]"); if (!b) return;
-    var i = +b.dataset.i;
-    qty[i] = Math.max(0, (qty[i] || 0) + +b.dataset.d);
+    var i = +b.dataset.i, dd = +b.dataset.d;
+    if (dd > 0 && !canAdd(products[i], modes[i] || defMode(products[i]))) return showError(T("err.stock", { name: products[i].name, n: Math.max(products[i].stock, 0) }));
+    qty[i] = Math.max(0, (qty[i] || 0) + dd);
     $("#q" + i).textContent = qty[i];
+    trimAddons(i); renderAddons(i);
     errorEl.hidden = true; updateTotal(); syncDelivery();
   });
   $("#items").addEventListener("change", function (e) {
@@ -200,9 +249,18 @@
   });
 
   function chosen() {
-    return products.map(function (p, i) { return { p: p, q: qty[i] || 0, mode: modes[i] || defMode(p) }; }).filter(function (x) { return x.q > 0; });
+    var out = [];
+    products.forEach(function (p, i) {
+      var q = qty[i] || 0; if (q <= 0) return;
+      out.push({ p: p, q: q, mode: modes[i] || defMode(p), price: p.price });
+      addonsFor(p).forEach(function (a) {
+        var n = addonQty[i + "|" + a.t.id] || 0;
+        if (n > 0) out.push({ p: a.t, q: n, mode: defMode(a.t), price: a.price, addon: true, addonOf: p.name });
+      });
+    });
+    return out;
   }
-  function updateTotal() { $("#total").textContent = money(chosen().reduce(function (s, x) { return s + x.p.price * x.q; }, 0)); }
+  function updateTotal() { $("#total").textContent = money(chosen().reduce(function (s, x) { return s + x.price * x.q; }, 0)); }
 
   // 順豐 needs every chosen product to allow it; 門市自取 needs every chosen product to be a stock or pre-order item.
   function deliveryOk(d, list) {
@@ -271,10 +329,14 @@
     if ($("#f-website").value) return; // spam trap
     errorEl.hidden = true;
 
-    var total = list.reduce(function (s, x) { return s + x.p.price * x.q; }, 0);
+    var need = {};
+    list.forEach(function (x) { if (tracked(x.p) && x.mode !== "preorder") need[x.p.id] = (need[x.p.id] || 0) + x.q; });
+    var short = Object.keys(need).filter(function (id) { return need[id] > Math.max(byId(id).stock, 0); })[0];
+    if (short) return showError(T("err.stock", { name: byId(short).name, n: Math.max(byId(short).stock, 0) }));
+    var total = list.reduce(function (s, x) { return s + x.price * x.q; }, 0);
     var order = {
       orderNo: newOrderNo(), name: name, contact: contact, delivery: dName(d, +r.value), address: d.pickup ? "" : address, notes: notes,
-      items: list.map(function (x) { return { group: x.p.group, name: x.p.name, price: x.p.price, qty: x.q, mode: x.mode }; }), total: total
+      items: list.map(function (x) { var it = { group: x.p.group, name: x.p.name, price: x.price, qty: x.q, mode: x.mode }; if (x.addon) { it.addon = true; it.addonOf = x.addonOf; } return it; }), total: total
     };
     pending = order;
     openReview(order);
@@ -284,7 +346,7 @@
   var pending = null, review = $("#review");
   function openReview(o) {
     $("#review-summary").innerHTML = o.items.map(function (i) {
-      return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + " · " + esc(T("chan." + i.mode)) + "</span><span>" + money(i.price * i.qty) + "</span></div>";
+      return "<div><span>" + (i.addon ? esc(T("me.addon")) + " " : "") + esc(dn(i.group, i.name)) + " × " + i.qty + " · " + esc(T("chan." + i.mode)) + "</span><span>" + money(i.price * i.qty) + "</span></div>";
     }).join("") + '<div class="tot"><span>' + esc(T("review.total")) + "</span><span>" + money(o.total) + "</span></div>";
     var rows = [[T("review.name"), o.name], [T("review.contact"), o.contact], [T("review.email"), window.MHA.user.email], [T("review.delivery"), o.delivery]];
     if (o.address) rows.push([T("review.address"), o.address]);
@@ -344,6 +406,7 @@
     if (remote && remote.products && remote.products.length) return remote.products;
     return loadProducts();
   }).then(function (list) {
+    allProducts = list;
     products = list.filter(function (p) { return kindOf(p) !== "hidden"; });
     $("#loading").hidden = true;
     renderChips(); renderCards(); renderItems();

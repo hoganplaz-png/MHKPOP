@@ -20,6 +20,15 @@
     if (b) b.textContent = A.user ? label(A.user) : T("acct.btn.in");
   }
 
+  // every registered account is a member: create the member record the first time the customer signs in
+  function ensureMember(c, u) {
+    var ref = c.fs.doc(c.db, "members", u.uid);
+    c.fs.getDoc(ref).then(function (d) {
+      if (d.exists()) return;
+      return c.fs.setDoc(ref, { uid: u.uid, email: u.email || "", name: u.displayName || "", points: 0, spent: 0, joinedAt: c.fs.serverTimestamp() });
+    }).catch(function () { /* the admin page creates it with the first order instead */ });
+  }
+
   A.init = function () {
     if (started) return started;
     started = window.MHFB.load().then(function (c) {
@@ -29,8 +38,9 @@
         var first = true;
         c.au.onAuthStateChanged(c.auth, function (u) {
           A.user = u || null;
+          if (u) ensureMember(c, u);
           notify();
-          if (first) { first = false; resolve(); }
+          if (first) { first = false; resolve(); if (location.hash === "#login" && !u) A.open("in"); }
         });
         setTimeout(resolve, 5000);
       });

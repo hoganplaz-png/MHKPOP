@@ -1,13 +1,13 @@
 // Shop management pages of the admin site: POS (收銀), sales records and POS paste-in (銷售紀錄),
 // bulk orders and costs (進貨及成本), rent and other costs (租金及開支), and the profit report (利潤).
 import {
-  money, round2, todayStr, periodRange, num, calcPurchase, allLines, soldMap, allocateFrom, matchLines, consume,
-  profitReport, parsePosText, saleKey, normName, addDays, dn
+  money, round2, todayStr, periodRange, num, calcPurchase, allLines, soldMap, matchLines, profitReport, parsePosText, saleKey,
+  normName, addDays, dn, buildItems, bestProduct, matchProducts, candidateLines, stockToRestore, addonsOf
 } from "./shoplib.js";
 
 export function setupShop(ctx) {
   const { db, fb, $, esc, notice } = ctx;
-  const { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } = fb;
+  const { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion } = fb;
 
   let purchases = [], sales = [], expenses = [], unsubs = [];
   let cart = [], imp = null, salesKind = "month", profitKind = "month";
@@ -53,24 +53,30 @@ export function setupShop(ctx) {
   function renderAll() { renderPOS(); renderSales(); renderPurchases(); renderExpenses(); renderProfit(); }
 
   // ================= 收銀 POS =================
-  function sellable() {
-    const map = new Map();
+  const prods = () => ctx.getWebProducts() || [];
+  const stockLabel = (p) => (typeof p.stock === "number" ? (p.stock > 0 ? "存庫 " + p.stock : "存庫 0") : "未追蹤存庫");
+  // tiles: every website product, plus purchased goods that are not on the website
+  function tiles() {
+    const ps = prods(), out = ps.map((p) => ({ kind: "p", key: "p:" + p.id, id: p.id, group: p.group || "", name: p.name, price: Number(p.price) || 0, stock: p.stock, hidden: p.status === "hidden", sold: p.status === "sold" }));
+    const seen = new Set();
     lines().forEach((l) => {
-      const key = normName((l.group || "") + " " + l.name);
-      const e = map.get(key) || { key, group: l.group || "", name: l.name, left: 0, price: 0, priceDate: "" };
-      e.left += l.left;
-      if (l.sellPrice > 0 && l.purchaseDate >= e.priceDate) { e.price = l.sellPrice; e.priceDate = l.purchaseDate; }
-      map.set(key, e);
+      if (ps.some((p) => candidateLines(p, [l]).length)) return;
+      const key = normName(dn(l.group, l.name));
+      if (seen.has(key)) return; seen.add(key);
+      const same = lines().filter((x) => normName(dn(x.group, x.name)) === key);
+      const priced = same.filter((x) => x.sellPrice > 0).pop();
+      out.push({ kind: "l", key: "l:" + key, group: l.group || "", name: l.name, price: priced ? priced.sellPrice : 0, stock: same.reduce((t, x) => t + x.left, 0), candIds: same.map((x) => x.id) });
     });
-    return [...map.values()].sort((a, b) => (b.left > 0) - (a.left > 0) || (a.group + a.name).localeCompare(b.group + b.name, "zh-HK"));
+    return out;
   }
+  const inCartQty = (key) => cart.filter((c) => c.key === key).reduce((t, c) => t + c.qty, 0);
   function renderPOS() {
     const q = $("#pos-search").value.trim().toLowerCase();
-    const list = sellable().filter((e) => !q || (e.group + " " + e.name).toLowerCase().includes(q));
+    const list = tiles().filter((e) => !q || (e.group + " " + e.name).toLowerCase().includes(q));
     $("#pos-products").innerHTML = list.length ? list.map((e) =>
-      '<button type="button" class="pos-tile' + (e.left <= 0 ? " out" : "") + '" data-key="' + esc(e.key) + '"><span class="pt-group">' + esc(e.group) + "</span><b>" + esc(e.name) + '</b><span class="pt-price">' +
-      (e.price ? money(e.price) : "未設售價") + '</span><span class="pt-left">' + (e.left > 0 ? "庫存 " + e.left : "無庫存") + "</span></button>").join("")
-      : '<p class="empty">' + (purchases.length ? "找不到商品。" : "未有商品。請先在「進貨及成本」新增進貨單，或用「其他項目」手動輸入。") + "</p>";
+      '<button type="button" class="pos-tile' + (typeof e.stock === "number" && e.stock <= 0 ? " out" : "") + '" data-key="' + esc(e.key) + '"><span class="pt-group">' + esc(e.group) + (e.hidden ? " · 隱藏" : "") + "</span><b>" + esc(e.name) + '</b><span class="pt-price">' +
+      (e.price ? money(e.price) : "未設售價") + '</span><span class="pt-left">' + (typeof e.stock === "number" ? (e.stock > 0 ? "存庫 " + e.stock : "存庫 0") : "未追蹤存庫") + "</span></button>").join("")
+      : '<p class="empty">未有商品。請先在「商品」分頁新增商品，或用「其他項目」手動輸入。</p>';
     renderCart();
     const today = todayStr();
     const mine = sales.filter((s) => s.date === today).sort((a, b) => String(b.time || "").localeCompare(String(a.time || "")));
@@ -80,14 +86,15 @@ export function setupShop(ctx) {
       : '<p class="empty">今日未有銷售。</p>';
   }
   function renderCart() {
-    const ls = sellable();
+    const ps = prods();
     $("#pos-cart").innerHTML = cart.length ? cart.map((c, i) => {
-      const e = c.key ? ls.find((x) => x.key === c.key) : null;
-      const warn = e && c.qty > e.left ? '<div class="o-warn">庫存只有 ' + Math.max(e.left, 0) + " 件</div>" : "";
-      return '<div class="cart-line" data-i="' + i + '"><div class="cl-name"><b>' + esc(c.name) + "</b><small>" + esc(c.group || (c.custom ? "手動項目" : "")) + "</small>" + warn + "</div>" +
+      const p = c.productId ? ps.find((x) => x.id === c.productId) : null;
+      const warn = p && typeof p.stock === "number" && inCartQty(c.key) > p.stock ? '<div class="o-warn">存庫只有 ' + Math.max(p.stock, 0) + " 件</div>" : "";
+      const adds = !c.addon && p ? addonsOf(p, ps).map((a, k) => '<button type="button" class="btn btn-line addon-btn" data-act="addon" data-k="' + k + '">＋ 加購 ' + esc(a.product.name) + "（" + money(a.price) + "）</button>").join("") : "";
+      return '<div class="cart-line" data-i="' + i + '"><div class="cl-name"><b>' + (c.addon ? "↳ 加購：" : "") + esc(c.name) + "</b><small>" + esc(c.group || (c.custom ? "手動項目" : "")) + "</small>" + warn + "</div>" +
         '<div class="qty"><button type="button" data-act="dec" aria-label="減少">−</button><output>' + c.qty + '</output><button type="button" data-act="inc" aria-label="增加">+</button></div>' +
         '<label class="mini cl-price">單價<input class="field" type="number" step="any" inputmode="decimal" data-act="price" value="' + esc(c.price) + '"></label>' +
-        '<div class="cl-total">' + money(c.price * c.qty) + '</div><button type="button" class="icon" data-act="del" aria-label="移除">✕</button></div>';
+        '<div class="cl-total">' + money(c.price * c.qty) + '</div><button type="button" class="icon" data-act="del" aria-label="移除">✕</button>' + (adds ? '<div class="cl-addons">' + adds + "</div>" : "") + "</div>";
     }).join("") : '<p class="empty">按左邊的商品加入本單。</p>';
     updateCartTotal();
   }
@@ -99,9 +106,12 @@ export function setupShop(ctx) {
   $("#pos-search").addEventListener("input", renderPOS);
   $("#pos-products").addEventListener("click", (e) => {
     const b = e.target.closest("[data-key]"); if (!b) return;
-    const ex = cart.find((c) => c.key === b.dataset.key);
+    const ex = cart.find((c) => c.key === b.dataset.key && !c.addon);
     if (ex) ex.qty++;
-    else { const p = sellable().find((x) => x.key === b.dataset.key); if (p) cart.push({ key: p.key, name: p.name, group: p.group, price: p.price || 0, qty: 1 }); }
+    else {
+      const t = tiles().find((x) => x.key === b.dataset.key);
+      if (t) cart.push({ key: t.key, productId: t.kind === "p" ? t.id : "", candIds: t.candIds || null, name: t.name, group: t.group, price: t.price || 0, qty: 1 });
+    }
     renderCart();
   });
   $("#pos-cart").addEventListener("click", (e) => {
@@ -109,7 +119,11 @@ export function setupShop(ctx) {
     const i = +row.dataset.i, c = cart[i]; if (!c) return;
     if (b.dataset.act === "inc") c.qty++;
     else if (b.dataset.act === "dec") c.qty = Math.max(1, c.qty - 1);
-    else if (b.dataset.act === "del") cart.splice(i, 1);
+    else if (b.dataset.act === "del") { cart.splice(i, 1); for (let j = cart.length - 1; j >= 0; j--) if (cart[j].addon && cart[j].addonOf === c.key && !cart.some((x) => !x.addon && x.key === c.key)) cart.splice(j, 1); }
+    else if (b.dataset.act === "addon") {
+      const p = prods().find((x) => x.id === c.productId), a = p ? addonsOf(p, prods())[+b.dataset.k] : null;
+      if (a) { const ex = cart.find((x) => x.addon && x.addonOf === c.key && x.productId === a.product.id); if (ex) ex.qty++; else cart.splice(i + 1, 0, { key: "p:" + a.product.id, productId: a.product.id, name: a.product.name, group: a.product.group || "", price: a.price, qty: 1, addon: true, addonOf: c.key }); }
+    }
     renderCart();
   });
   $("#pos-cart").addEventListener("input", (e) => {
@@ -127,9 +141,24 @@ export function setupShop(ctx) {
     e.preventDefault();
     const name = $("#c-name").value.trim(), price = Number($("#c-price").value), cost = $("#c-cost").value;
     if (!name || !Number.isFinite(price)) return;
-    cart.push({ key: "", name, group: "", price, qty: 1, custom: true, cost: cost === "" ? null : Number(cost) });
+    cart.push({ key: "", productId: "", name, group: "", price, qty: 1, custom: true, cost: cost === "" ? null : Number(cost) });
     cdlg.close(); renderCart();
   });
+
+  // Saves sales and takes the sold quantity off each product's shared stock in the same step.
+  // docs: [{ id?, data, deltas: { productId: qty } }]
+  async function commitSales(docs) {
+    for (const part of chunk(docs, 150)) {
+      const b = writeBatch(db), deltas = {};
+      part.forEach((d) => {
+        b.set(d.id ? doc(db, "sales", d.id) : doc(collection(db, "sales")), d.data);
+        Object.entries(d.deltas || {}).forEach(([pid, q]) => { deltas[pid] = (deltas[pid] || 0) + q; });
+      });
+      Object.entries(deltas).forEach(([pid, q]) => { if (q) b.update(doc(db, "products", pid), { stock: increment(-q) }); });
+      await b.commit();
+    }
+  }
+  const workEnv = () => ({ products: prods().map((p) => ({ ...p })), lines: lines().map((l) => ({ ...l })) });
 
   $("#pos-done").addEventListener("click", async () => {
     const err = $("#pos-error"), btn = $("#pos-done"), msg = $("#pos-msg");
@@ -138,24 +167,21 @@ export function setupShop(ctx) {
     const date = $("#pos-date").value || todayStr();
     const gross = cartGross(), disc = Math.max(0, Number($("#pos-discount").value) || 0);
     if (disc > gross) { err.textContent = "折扣不可以多過貨品總額。"; err.hidden = false; return; }
-    const ls = lines().map((l) => ({ ...l })), items = [];
+    const env = workEnv(), items = [], deltas = {};
     cart.forEach((c) => {
-      if (c.custom || !c.key) {
-        const it = { name: c.name, group: "", qty: c.qty, price: c.price, lineId: "" };
-        if (c.cost != null && Number.isFinite(c.cost)) it.cost = c.cost;
-        items.push(it); return;
-      }
-      const parts = allocateFrom(ls.filter((l) => normName((l.group || "") + " " + l.name) === c.key), c.qty);
-      consume(ls, parts);
-      parts.forEach((p) => items.push({ name: c.name, group: c.group || "", qty: p.qty, price: c.price, lineId: p.lineId }));
+      const item = c.custom ? { name: c.name, qty: c.qty, price: c.price, productId: "none", lineId: "none", cost: c.cost }
+        : c.productId ? { name: c.name, qty: c.qty, price: c.price, productId: c.productId, addon: !!c.addon }
+        : { name: c.name, qty: c.qty, price: c.price, productId: "none", candIds: c.candIds || [] };
+      const r = buildItems(item, env); items.push(...r.items);
+      Object.entries(r.delta).forEach(([pid, q]) => { deltas[pid] = (deltas[pid] || 0) + q; });
     });
     const n = sales.filter((s) => s.date === date && s.source === "pos").length + 1;
     const receipt = "POS-" + date.replace(/-/g, "") + "-" + String(n).padStart(3, "0");
     const total = round2(gross - disc);
     btn.disabled = true;
     try {
-      await addDoc(collection(db, "sales"), { date, time: nowTime(), receipt, payment: $("#pos-payment").value, source: "pos", items, total, discount: disc, note: $("#pos-note").value.trim(), createdAt: serverTimestamp() });
-      msg.textContent = "已記錄 " + money(total) + "（" + receipt + "）";
+      await commitSales([{ data: { date, time: nowTime(), receipt, payment: $("#pos-payment").value, source: "pos", items, total, discount: disc, note: $("#pos-note").value.trim(), createdAt: serverTimestamp() }, deltas }]);
+      msg.textContent = "已記錄 " + money(total) + "（" + receipt + "）" + (Object.keys(deltas).length ? "，存庫已自動減少" : "");
       cart = []; $("#pos-discount").value = 0; $("#pos-note").value = ""; renderCart();
     } catch (e2) { err.textContent = "儲存失敗。請確認已發布最新的安全規則，或稍後再試。"; err.hidden = false; }
     btn.disabled = false;
@@ -174,9 +200,14 @@ export function setupShop(ctx) {
       '<b class="s-total">' + money(s.total) + '</b><button type="button" class="icon" data-del="' + esc(s.id) + '" aria-label="刪除這張單">✕</button></div><ul class="s-items">' + items + "</ul>" +
       (s.discount ? '<p class="hint">已折扣 ' + money(s.discount) + "</p>" : "") + (s.note ? '<p class="hint">備註：' + esc(s.note) + "</p>" : "") + "</article>";
   }
-  function deleteSale(id) {
-    if (!confirm("確定刪除這張銷售單？賣出的貨品會自動回到庫存。")) return;
-    deleteDoc(doc(db, "sales", id)).catch(() => fail("刪除失敗，請再試。"));
+  // removing a sale gives the stock back
+  function deleteSale(id, silent) {
+    const s = sales.find((x) => x.id === id); if (!s) return Promise.resolve();
+    if (!silent && !confirm("確定刪除這張銷售單？賣出的貨品會自動回到存庫。")) return Promise.resolve();
+    const b = writeBatch(db);
+    b.delete(doc(db, "sales", id));
+    Object.entries(stockToRestore(s)).forEach(([pid, q]) => { const p = prods().find((x) => x.id === pid); if (p && typeof p.stock === "number" && q) b.update(doc(db, "products", pid), { stock: increment(q) }); });
+    return b.commit().catch(() => fail("刪除失敗，請再試。"));
   }
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-del]"); if (!b || !b.closest(".sale")) return;
@@ -218,19 +249,20 @@ export function setupShop(ctx) {
   });
 
   // ---- paste in a POS record ----
-  function lineOptions() {
-    return lines().map((l) => '<option value="' + esc(l.id) + '">' + esc(dn(l.group, l.name) + " · 進貨 " + l.purchaseDate + " · 餘 " + l.left) + "</option>").join("");
-  }
+  const productOptions = () => prods().map((p) => '<option value="p:' + esc(p.id) + '">' + esc(dn(p.group, p.name) + " · " + stockLabel(p)) + "</option>").join("");
   $("#imp-parse").addEventListener("click", () => {
     const text = $("#imp-text").value;
     if (!text.trim()) { $("#imp-result").innerHTML = '<p class="error">請先貼上銷售紀錄。</p>'; return; }
     const res = parsePosText(text, { defaultDate: $("#imp-date").value || todayStr(), freePrice: $("#imp-free").value });
-    const ls = lines(), have = new Set(sales.map((s) => s.id));
+    const ps = prods(), ls = lines(), have = new Set(sales.map((s) => s.id));
     imp = {
       skipped: res.skipped, mode: res.mode,
       sales: res.sales.map((s) => {
         const id = saleKey(s);
-        return { ...s, id, dup: have.has(id), include: !have.has(id), items: s.items.map((i) => { const m = matchLines(i.name, ls); return { ...i, lineId: "auto", label: m.length ? dn(m[0].group, m[0].name) : "" }; }) };
+        return { ...s, id, dup: have.has(id), include: !have.has(id), items: s.items.map((i) => {
+          const p = bestProduct(i.name, ps), m = p ? null : matchLines(i.name, ls);
+          return { ...i, sel: "auto", label: p ? dn(p.group, p.name) : m && m.length ? dn(m[0].group, m[0].name) : "" };
+        }) };
       })
     };
     renderImport();
@@ -245,20 +277,20 @@ export function setupShop(ctx) {
       box.innerHTML = '<p class="error">未能辨識出任何銷售。請確認貼上的內容包含貨品名稱和金額。' + (imp.skipped.length ? "（略過 " + imp.skipped.length + " 行）" : "") + "</p>";
       return;
     }
-    const opts = lineOptions();
+    const opts = productOptions();
     const inc = imp.sales.filter((s) => s.include);
     const totalAll = inc.reduce((t, s) => t + impTotal(s), 0), nItems = inc.reduce((t, s) => t + s.items.length, 0);
-    const unmatched = inc.reduce((t, s) => t + s.items.filter((i) => i.lineId === "auto" && !i.label).length, 0);
+    const unmatched = inc.reduce((t, s) => t + s.items.filter((i) => i.sel === "auto" && !i.label).length, 0);
     box.innerHTML = '<div class="imp-sum"><b>辨識到 ' + imp.sales.length + " 張單</b>（" + ({ header: "按表頭", guess: "自動推測欄位", text: "純文字單據" }[imp.mode] || "") + "）" +
-      (imp.sales.some((s) => s.dup) ? "，其中 " + imp.sales.filter((s) => s.dup).length + " 張已記錄過" : "") + "。將加入 " + inc.length + " 張單、" + nItems + " 項貨品，共 <b>" + money(totalAll) + "</b>。" +
-      (unmatched ? ' <span class="o-warn-inline">⚠ ' + unmatched + " 項未能配對到進貨貨品（只記銷售，成本未知）。可在下面揀選貨品。</span>" : "") + "</div>" +
+      (imp.sales.some((s) => s.dup) ? "，其中 " + imp.sales.filter((s) => s.dup).length + " 張已記錄過" : "") + "。將加入 " + inc.length + " 張單、" + nItems + " 項貨品，共 <b>" + money(totalAll) + "</b>。加入後，配對到的商品存庫會自動減少。" +
+      (unmatched ? ' <span class="o-warn-inline">⚠ ' + unmatched + " 項未能配對到商品。請在下面揀選對應的商品，系統會記住這個 POS 名稱，下次自動配對。</span>" : "") + "</div>" +
       imp.sales.map((s, si) => '<article class="sale imp' + (s.dup ? " is-dup" : "") + '" data-si="' + si + '"><div class="s-head"><label class="check"><input type="checkbox" data-inc ' + (s.include ? "checked" : "") + (s.dup ? " disabled" : "") + "><span><b>" +
         esc(s.receipt || "（無單號）") + "</b> " + esc(s.date) + " " + esc(s.time) + "</span></label>" + (s.payment ? '<span class="badge">' + esc(s.payment) + "</span>" : "") + (s.dup ? '<span class="badge">已記錄過</span>' : "") +
         '<b class="s-total">' + money(impTotal(s)) + "</b></div>" + s.items.map((i, ii) =>
           '<div class="imp-item" data-ii="' + ii + '"><span class="ii-name">' + esc(i.name) + '</span><label class="mini">數量<input class="field" type="number" step="any" data-f="qty" value="' + esc(i.qty) + '"></label>' +
           '<label class="mini">單價<input class="field" type="number" step="any" data-f="price" value="' + esc(i.price) + '"></label>' +
-          '<label class="mini grow">配對貨品<select class="field" data-f="line"><option value="auto"' + (i.lineId === "auto" ? " selected" : "") + ">自動：" + esc(i.label || "未能配對") + '</option><option value="none"' + (i.lineId === "none" ? " selected" : "") + ">不配對（只記銷售）</option>" +
-          opts.replace('value="' + esc(i.lineId) + '"', 'value="' + esc(i.lineId) + '" selected') + '</select></label><button type="button" class="icon" data-rm aria-label="移除這項">✕</button></div>').join("") + "</article>").join("") +
+          '<label class="mini grow">對應商品<select class="field" data-f="sel"><option value="auto"' + (i.sel === "auto" ? " selected" : "") + ">自動：" + esc(i.label || "未能配對") + '</option><option value="none"' + (i.sel === "none" ? " selected" : "") + ">不配對（只記銷售）</option>" +
+          opts.replace('value="' + esc(i.sel) + '"', 'value="' + esc(i.sel) + '" selected') + '</select></label><button type="button" class="icon" data-rm aria-label="移除這項">✕</button></div>').join("") + "</article>").join("") +
       (imp.skipped.length ? '<details class="skipped"><summary>略過了 ' + imp.skipped.length + " 行（不是貨品，例如合計、找續）</summary><pre>" + esc(imp.skipped.join("\n")) + "</pre></details>" : "") +
       '<div class="dlg-actions"><button type="button" class="btn btn-solid btn-lg" id="imp-save"' + (inc.length ? "" : " disabled") + ">加入 " + inc.length + " 張單到銷售紀錄</button></div><p class=\"saving\" id=\"imp-msg\" aria-live=\"polite\"></p>";
   }
@@ -267,7 +299,7 @@ export function setupShop(ctx) {
     const s = imp.sales[+art.dataset.si];
     if (e.target.matches("[data-inc]")) { s.include = e.target.checked; renderImport(); return; }
     const row = e.target.closest(".imp-item"); if (!row) return;
-    if (e.target.dataset.f === "line") { s.items[+row.dataset.ii].lineId = e.target.value; }
+    if (e.target.dataset.f === "sel") { s.items[+row.dataset.ii].sel = e.target.value; renderImport(); }
   });
   $("#imp-result").addEventListener("input", (e) => {
     const art = e.target.closest(".sale.imp"); const row = e.target.closest(".imp-item"); if (!art || !row || !imp) return;
@@ -286,37 +318,45 @@ export function setupShop(ctx) {
   });
   async function saveImport() {
     const btn = $("#imp-save"), msg = $("#imp-msg");
-    const ls = lines().map((l) => ({ ...l })), docs = [];
+    const env = workEnv(), docs = [], learn = {};
     imp.sales.filter((s) => s.include && !s.dup && s.items.length).forEach((s) => {
-      const items = [];
+      const items = [], deltas = {};
       s.items.forEach((i) => {
         const q = Number(i.qty), p = Number(i.price);
         if (!Number.isFinite(q) || !Number.isFinite(p)) return;
-        if (i.lineId === "none") { items.push({ name: i.name, group: "", qty: q, price: p, lineId: "" }); return; }
-        const cands = i.lineId === "auto" ? matchLines(i.name, ls) : ls.filter((l) => l.id === i.lineId);
-        const parts = allocateFrom(cands, q); consume(ls, parts);
-        parts.forEach((pt) => {
-          const l = ls.find((x) => x.id === pt.lineId);
-          const it = { name: l ? l.name : i.name, group: l ? l.group || "" : "", qty: pt.qty, price: p, lineId: pt.lineId };
-          if (l && l.name !== i.name) it.posName = i.name;
-          items.push(it);
-        });
+        const sel = i.sel === "none" ? { productId: "none", lineId: "none" } : i.sel && i.sel.startsWith("p:") ? { productId: i.sel.slice(2) } : { productId: "" };
+        const r = buildItems({ name: i.name, qty: q, price: p, ...sel }, env);
+        items.push(...r.items); Object.entries(r.delta).forEach(([pid, n]) => { deltas[pid] = (deltas[pid] || 0) + n; });
+        if (sel.productId && sel.productId !== "none" && r.product && normName(r.product.name) !== normName(i.name) && !(r.product.aliases || []).some((a) => normName(a) === normName(i.name))) {
+          (learn[r.product.id] = learn[r.product.id] || new Set()).add(i.name);
+        }
       });
-      docs.push({ id: s.id, data: { date: s.date, time: s.time || "", receipt: s.receipt || "", payment: s.payment || "", source: "import", items, total: impTotal(s), discount: round2(s.discount || 0), note: "", createdAt: serverTimestamp() } });
+      docs.push({ id: s.id, deltas, data: { date: s.date, time: s.time || "", receipt: s.receipt || "", payment: s.payment || "", source: "import", items, total: impTotal(s), discount: round2(s.discount || 0), note: "", createdAt: serverTimestamp() } });
     });
     if (!docs.length) return;
     btn.disabled = true; msg.textContent = "儲存中…";
     try {
-      for (const part of chunk(docs, 300)) { const b = writeBatch(db); part.forEach((d) => b.set(doc(db, "sales", d.id), d.data)); await b.commit(); }
+      await commitSales(docs);
+      let learned = 0;
+      for (const [pid, names] of Object.entries(learn)) { await updateDoc(doc(db, "products", pid), { aliases: arrayUnion(...names) }).then(() => { learned += names.size; }).catch(() => {}); }
       $("#imp-text").value = ""; imp = null;
-      $("#imp-result").innerHTML = '<p class="saving">已加入 ' + docs.length + " 張銷售單，庫存和利潤已更新。</p>";
+      $("#imp-result").innerHTML = '<p class="saving">已加入 ' + docs.length + " 張銷售單，存庫、成本和利潤已更新。" + (learned ? "已記住 " + learned + " 個 POS 名稱，下次自動配對。" : "") + "</p>";
     } catch (e2) { msg.textContent = ""; btn.disabled = false; $("#imp-result").insertAdjacentHTML("afterbegin", '<p class="error">儲存失敗。請確認已發布最新的安全規則，或稍後再試。</p>'); }
   }
 
-  // ---- website orders -> sales ----
+  // ---- website orders -> sales (also done automatically when an order is set to 已確認) ----
+  const saleIdOf = (o) => "W-" + o.orderNo;
+  function webSaleDoc(o, env) {
+    const items = [], deltas = {};
+    (o.items || []).forEach((i) => {
+      const r = buildItems({ name: dn(i.group, i.name), qty: Number(i.qty) || 0, price: Number(i.price) || 0, addon: !!i.addon }, env);
+      items.push(...r.items); Object.entries(r.delta).forEach(([pid, q]) => { deltas[pid] = (deltas[pid] || 0) + q; });
+    });
+    return { id: saleIdOf(o), deltas, data: { date: dateOf(o.createdAt), time: timeOf(o.createdAt), receipt: o.orderNo, payment: "網站訂單", source: "web", items, total: Number(o.total) || 0, discount: 0, orderNo: o.orderNo, note: "", createdAt: serverTimestamp() } };
+  }
   function pendingWebOrders() {
     const have = new Set(sales.map((s) => s.id));
-    return (ctx.getOrders() || []).filter((o) => (o.status === "confirmed" || o.status === "done") && !have.has("W-" + o.orderNo));
+    return (ctx.getOrders() || []).filter((o) => (o.status === "confirmed" || o.status === "done") && !have.has(saleIdOf(o)));
   }
   function renderWebBox() {
     const list = pendingWebOrders();
@@ -325,18 +365,18 @@ export function setupShop(ctx) {
   }
   $("#web-add").addEventListener("click", async () => {
     const list = pendingWebOrders(); if (!list.length) return;
-    const ls = lines().map((l) => ({ ...l })), docs = [];
-    list.forEach((o) => {
-      const items = [];
-      (o.items || []).forEach((i) => {
-        const parts = allocateFrom(matchLines(dn(i.group, i.name), ls), Number(i.qty) || 0); consume(ls, parts);
-        parts.forEach((pt) => { const l = ls.find((x) => x.id === pt.lineId); items.push({ name: l ? l.name : i.name, group: l ? l.group || "" : i.group || "", qty: pt.qty, price: Number(i.price) || 0, lineId: pt.lineId }); });
-      });
-      docs.push({ id: "W-" + o.orderNo, data: { date: dateOf(o.createdAt), time: timeOf(o.createdAt), receipt: o.orderNo, payment: "網站訂單", source: "web", items, total: Number(o.total) || 0, discount: 0, orderNo: o.orderNo, note: "", createdAt: serverTimestamp() } });
-    });
-    try { for (const part of chunk(docs, 300)) { const b = writeBatch(db); part.forEach((d) => b.set(doc(db, "sales", d.id), d.data)); await b.commit(); } }
-    catch (e) { fail("加入失敗。請確認已發布最新的安全規則，或稍後再試。"); }
+    const env = workEnv();
+    try { await commitSales(list.map((o) => webSaleDoc(o, env))); } catch (e) { fail("加入失敗。請確認已發布最新的安全規則，或稍後再試。"); }
   });
+  // called by the orders tab when the status of an order changes: confirmed/done = counted as a sale (stock taken); anything else = not counted
+  async function syncOrderSale(order, status) {
+    const id = saleIdOf(order), exists = sales.some((s) => s.id === id);
+    try {
+      if ((status === "confirmed" || status === "done") && !exists) await commitSales([webSaleDoc(order, workEnv())]);
+      else if ((status === "new" || status === "cancelled") && exists) await deleteSale(id, true);
+    } catch (e) { fail("訂單已更新，但未能同步銷售紀錄和存庫，請到「銷售紀錄」檢查。"); }
+  }
+
   function webOrdersChanged() { renderWebBox(); }
 
   // ================= 進貨及成本 =================
@@ -351,20 +391,20 @@ export function setupShop(ctx) {
     const spent = purchases.reduce((t, p) => t + calcPurchase(p).total, 0);
     const units = all.reduce((t, l) => t + Math.max(l.left, 0), 0);
     const stockCost = all.reduce((t, l) => t + Math.max(l.left, 0) * l.unitCost, 0), stockSell = all.reduce((t, l) => t + Math.max(l.left, 0) * (Number(l.sellPrice) || 0), 0);
-    $("#pu-stats").innerHTML = purchases.length ? [["總進貨成本", money(spent)], ["現有庫存", units + " 件"], ["庫存成本", money(stockCost)], ["全部售出可得", money(stockSell)], ["預計庫存毛利", money(stockSell - stockCost)]]
+    $("#pu-stats").innerHTML = purchases.length ? [["總進貨成本", money(spent)], ["進貨批次剩餘", units + " 件"], ["批次剩餘成本", money(stockCost)], ["全部售出可得", money(stockSell)], ["預計毛利", money(stockSell - stockCost)]]
       .map(([k, v]) => '<div class="stat"><small>' + k + "</small><b>" + v + "</b></div>").join("") : "";
     $("#pu-list").innerHTML = list.map((p) => {
       const c = calcPurchase(p), perUnit = c.qty ? c.total / c.qty : 0;
       const rows = c.lines.map((l) => {
         const s = sold[l.id] || 0, left = (Number(l.qty) || 0) + (Number(l.adjust) || 0) - s;
         return "<tr><td>" + esc(dn(l.group, l.name)) + "</td><td>" + esc(l.qty) + "</td><td>" + esc(curLabel(p)) + " " + esc(l.unitPrice) + "</td><td><b>" + money(l.unitCost) + '</b></td><td><input class="inl" type="number" step="any" min="0" data-pid="' + esc(p.id) + '" data-lid="' + esc(l.id) + '" data-f="sell" value="' + esc(l.sellPrice || 0) +
-          '" aria-label="售價"></td><td class="' + (l.margin < 0 ? "neg" : "pos") + '">' + money(l.margin) + " (" + Math.round(l.marginPct * 100) + '%)</td><td>' + s + '</td><td><input class="inl" type="number" step="1" data-pid="' + esc(p.id) + '" data-lid="' + esc(l.id) + '" data-f="left" value="' + left + '" aria-label="現有庫存"></td></tr>';
+          '" aria-label="售價"></td><td class="' + (l.margin < 0 ? "neg" : "pos") + '">' + money(l.margin) + " (" + Math.round(l.marginPct * 100) + '%)</td><td>' + s + '</td><td class="' + (left < 0 ? "neg" : "") + '">' + left + "</td></tr>";
       }).join("");
       return '<article class="pur" data-id="' + esc(p.id) + '"><div class="pu-head"><div><b>' + esc(p.date) + "</b>" + (p.supplier ? " · " + esc(p.supplier) : "") +
         (p.currency && p.currency !== "HKD" ? ' <span class="badge">' + esc(p.currency) + " @ " + esc(p.rate) + "</span>" : "") + (c.rateMissing ? ' <span class="o-warn-inline">⚠ 未填匯率</span>' : "") +
         '</div><button type="button" class="btn btn-line" data-edit="' + esc(p.id) + '">編輯</button></div>' +
         '<p class="pu-sum">貨品 ' + money(c.goods) + " · 運費及費用 " + money(c.extras) + " · <b>總成本 " + money(c.total) + "</b> · 共 " + c.qty + " 件 · 平均每件 " + money(perUnit) + "</p>" +
-        '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>貨品</th><th>數量</th><th>進貨價</th><th>每件成本（連運費）</th><th>售價</th><th>每件毛利</th><th>已售</th><th>現有庫存</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
+        '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>貨品</th><th>數量</th><th>進貨價</th><th>每件成本（連運費）</th><th>售價</th><th>每件毛利</th><th>已售</th><th>批次剩餘</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
         (p.note ? '<p class="hint">備註：' + esc(p.note) + "</p>" : "") + "</article>";
     }).join("");
   }
@@ -430,7 +470,7 @@ export function setupShop(ctx) {
     $("#b-rate-wrap").hidden = $("#b-currency").value === "HKD";
     $("#b-ship").value = p ? p.shipping : 0; $("#b-other").value = p ? p.otherFees : 0; $("#b-alloc").value = p ? p.allocate : "qty"; $("#b-note").value = p ? p.note || "" : "";
     $("#b-lines").innerHTML = (p && p.lines && p.lines.length ? p.lines : [null]).map(lineRow).join("");
-    $("#b-error").hidden = true; $("#b-delete").hidden = !p;
+    $("#b-error").hidden = true; $("#b-delete").hidden = !p; $("#b-addstock-wrap").hidden = !!p;
     previewPurchase(); bdlg.showModal();
   }
   $("#pu-add").addEventListener("click", () => openPurchase(null));
@@ -466,7 +506,16 @@ export function setupShop(ctx) {
     if (p.currency !== "HKD" && !(p.rate > 0)) return bad("請填寫匯率（1 單位外幣 = 多少港幣）。");
     err.hidden = true; btn.disabled = true;
     const data = { ...p, updatedAt: serverTimestamp() };
-    const job = editingPurchase ? updateDoc(doc(db, "purchases", editingPurchase.id), data) : addDoc(collection(db, "purchases"), data);
+    let job;
+    if (editingPurchase) job = updateDoc(doc(db, "purchases", editingPurchase.id), data);
+    else if ($("#b-addstock").checked) {
+      // new purchase: also add the quantities to the stock of matching website products that track stock
+      const b = writeBatch(db), add = {};
+      b.set(doc(collection(db, "purchases")), data);
+      p.lines.forEach((l) => { const m = matchProducts(dn(l.group, l.name), prods()).find((x) => x.s >= 0.85); if (m && typeof m.p.stock === "number") add[m.p.id] = (add[m.p.id] || 0) + l.qty; });
+      Object.entries(add).forEach(([pid, q]) => b.update(doc(db, "products", pid), { stock: increment(q) }));
+      job = b.commit();
+    } else job = addDoc(collection(db, "purchases"), data);
     job.then(() => bdlg.close()).catch(() => bad("儲存失敗。請確認已發布最新的安全規則，或稍後再試。")).then(() => { btn.disabled = false; });
   });
   $("#b-delete").addEventListener("click", () => {
@@ -566,5 +615,5 @@ export function setupShop(ctx) {
     download("mhkpop-profit.csv", rows);
   });
 
-  return { start, stop, ordersChanged: webOrdersChanged, today: () => addDays(todayStr(), 0) };
+  return { start, stop, ordersChanged: webOrdersChanged, productsChanged: scheduleRender, syncOrderSale };
 }

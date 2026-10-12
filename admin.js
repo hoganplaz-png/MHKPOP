@@ -1,10 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, setDoc, writeBatch, serverTimestamp
+  getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, setDoc, writeBatch, serverTimestamp, increment, arrayUnion, deleteField
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 import { setupShop } from "./shop.js";
+import { setupMembers } from "./members.js";
+import { PROGRESS, progressKey } from "./shoplib.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
@@ -12,6 +14,7 @@ const PRODUCT_STATUS = { ok: "有貨", sold: "售罄", store: "只限門市（�
 const CHANNELS = { stock: "格仔舖現貨", preorder: "訂購", sf: "可寄順豐" };
 const chOf = (p) => { const c = Array.isArray(p.channels) ? p.channels.filter((x) => CHANNELS[x]) : []; return c.length ? c : ["stock", "sf"]; };
 const money = (n) => "HK$" + n;
+const dn = (g, n) => { g = String(g || "").trim(); n = String(n || "").trim(); return !g || n.toLowerCase().includes(g.toLowerCase()) ? n : g + " " + n; };
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const notice = (msg) => { const n = $("#notice"); n.textContent = msg; n.hidden = !msg; };
 const cfg = window.FIREBASE_CONFIG;
@@ -29,9 +32,13 @@ if (!cfg) {
   let editingPay = null, payPhoto = "";
   let photo = "";          // data URL of the photo in the product form
   let siteDirty = false;
+  const members = setupMembers({
+    db, $, esc, notice,
+    fb: { collection, doc, onSnapshot, query, orderBy, setDoc, updateDoc, writeBatch, serverTimestamp, increment }
+  });
   const shop = setupShop({
     db, $, esc, notice,
-    fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp },
+    fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion, deleteField },
     getOrders: () => orders, getWebProducts: () => products
   });
 
@@ -43,7 +50,7 @@ if (!cfg) {
   };
 
   onAuthStateChanged(auth, (user) => {
-    stopAll(); shop.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
+    stopAll(); shop.stop(); members.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
     if (!user) {
       $("#login").hidden = false; $("#app").hidden = true; $("#who").hidden = true;
       return;
@@ -51,11 +58,11 @@ if (!cfg) {
     $("#login").hidden = true; $("#app").hidden = false; $("#who").hidden = false;
     $("#who-email").textContent = user.email;
     notice("");
-    shop.start();
+    shop.start(); members.start();
     unsubs.push(onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")),
       (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); shop.ordersChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
-      (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); }, denied));
+      (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); shop.productsChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "proofs"), orderBy("createdAt", "desc")),
       (snap) => { proofs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "payments"), orderBy("order")),
@@ -104,8 +111,26 @@ if (!cfg) {
     const sel = e.target.closest("select[data-id]"); if (!sel) return;
     const tag = sel.parentElement.querySelector(".saving");
     tag.textContent = "儲存中…";
-    updateDoc(doc(db, "orders", sel.dataset.id), { status: sel.value })
-      .then(() => { tag.textContent = "已儲存"; })
+    const order = orders.find((o) => o.id === sel.dataset.id), status = sel.value, upd = { status };
+    // keep the customer-visible progress in step with the status
+    if (status === "confirmed" && (!order.progress || order.progress === "received")) upd.progress = "paid";
+    if (status === "done") upd.progress = "done";
+    updateDoc(doc(db, "orders", sel.dataset.id), upd)
+      .then(() => {
+        tag.textContent = "已儲存";
+        // confirmed / done = a sale: stock goes down and the member gets points. cancelled = both are put back.
+        const next = { ...order, ...upd };
+        return Promise.all([shop.syncOrderSale(next, status), members.syncOrder(next, status)]);
+      })
+      .catch(() => { tag.textContent = "儲存失敗，請再試"; });
+  });
+  // progress, SF tracking number and a note the customer sees on their order page
+  $("#orders").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-save-track]"); if (!b) return;
+    const box = b.closest(".o-track"), tag = box.querySelector(".saving");
+    tag.textContent = "儲存中…";
+    updateDoc(doc(db, "orders", box.dataset.id), { progress: box.querySelector('[data-f="progress"]').value, tracking: box.querySelector('[data-f="tracking"]').value.trim(), customerNote: box.querySelector('[data-f="cnote"]').value.trim() })
+      .then(() => { tag.textContent = "已儲存，客人可以看到"; })
       .catch(() => { tag.textContent = "儲存失敗，請再試"; });
   });
   $("#csv").addEventListener("click", () => {
@@ -129,7 +154,7 @@ if (!cfg) {
     const list = visibleOrders();
     $("#empty").hidden = list.length > 0;
     $("#orders").innerHTML = list.map((o) => {
-      const items = (o.items || []).map((i) => "<li><span>" + esc(i.group) + " " + esc(i.name) + " × " + esc(i.qty) + (i.mode && CHANNELS[i.mode] ? ' <span class="o-mode">· ' + CHANNELS[i.mode] + "</span>" : "") + "</span><span>" + money(i.price * i.qty) + "</span></li>").join("");
+      const items = (o.items || []).map((i) => "<li><span>" + esc(dn(i.group, i.name)) + " × " + esc(i.qty) + (i.mode && CHANNELS[i.mode] ? ' <span class="o-mode">· ' + CHANNELS[i.mode] + "</span>" : "") + "</span><span>" + money(i.price * i.qty) + "</span></li>").join("");
       const sum = (o.items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
       const warn = sum !== o.total ? '<p class="o-warn">⚠ 總額 ' + money(o.total) + " 與貨品加起來的 " + money(sum) + " 不符，請小心核對，不要確認。</p>" : "";
       const opts = Object.keys(ORDER_STATUS).map((k) => '<option value="' + k + '"' + (o.status === k ? " selected" : "") + ">" + ORDER_STATUS[k] + "</option>").join("");
@@ -141,10 +166,21 @@ if (!cfg) {
         (o.address ? "<div><dt>地址</dt><dd>" + esc(o.address) + "</dd></div>" : "") +
         (o.notes ? "<div><dt>備註</dt><dd>" + esc(o.notes) + "</dd></div>" : "") + "</dl>" +
         '<ul class="o-items">' + items + '</ul><div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" + warn +
-        proofHtml(o) + "</article>";
+        trackHtml(o) + proofHtml(o) + "</article>";
     }).join("");
   }
 
+  function trackHtml(o) {
+    if (o.status === "cancelled") return "";
+    const cur = progressKey(o);
+    const opts = PROGRESS.map(([k, t]) => '<option value="' + k + '"' + (cur === k ? " selected" : "") + ">" + t + "</option>").join("");
+    const pts = o.uid ? members.pointsPreview(o) : 0;
+    return '<div class="o-track" data-id="' + o.id + '"><label class="mini">訂單進度（客人可見）<select class="field" data-f="progress">' + opts + "</select></label>" +
+      '<label class="mini">順豐單號（選填）<input class="field" data-f="tracking" maxlength="60" value="' + esc(o.tracking || "") + '"></label>' +
+      '<label class="mini grow">給客人的備註（選填）<input class="field" data-f="cnote" maxlength="250" value="' + esc(o.customerNote || "") + '"></label>' +
+      '<button type="button" class="btn btn-line" data-save-track>儲存進度</button><span class="saving" aria-live="polite"></span>' +
+      (o.uid ? '<small class="hint">會員積分：' + (members.hasEarned(o) ? "已加分" : "按「已確認」後加 " + pts + " 分") + "</small>" : '<small class="hint">此訂單沒有會員帳戶（舊訂單）</small>') + "</div>";
+  }
   function proofHtml(o) {
     const list = proofsOf(o);
     if (!list.length) return '<p class="o-proof none">未有付款截圖</p>';
@@ -171,9 +207,10 @@ if (!cfg) {
       return '<article class="prod' + (p.status === "hidden" ? " is-hidden" : "") + '" data-id="' + p.id + '">' +
         '<div class="thumb">' + thumb + "</div>" +
         '<div class="p-main"><div class="p-group">' + esc(p.group) + "</div><div class=\"p-name\">" + esc(p.name) + "</div>" +
-        '<div class="p-meta">' + money(p.price) + (p.tag ? " · " + esc(p.tag) : "") + (p.eta && chOf(p).includes("preorder") ? " · 預計到貨：" + esc(p.eta) : "") + "</div>" +
+        '<div class="p-meta">' + money(p.price) + (p.addons && p.addons.length ? " · 加購 " + p.addons.length + " 項" : "") + (p.tag ? " · " + esc(p.tag) : "") + (p.eta && chOf(p).includes("preorder") ? " · 預計到貨：" + esc(p.eta) : "") + "</div>" +
         '<div class="badges">' + chOf(p).map((c) => '<span class="badge">' + CHANNELS[c] + "</span>").join("") + "</div></div>" +
         '<div class="p-actions">' +
+        '<label class="mini stk' + (typeof p.stock === "number" && p.stock <= 0 ? " neg" : "") + '">存庫<input class="inl" type="number" step="1" data-act="stock" placeholder="不追蹤" value="' + (typeof p.stock === "number" ? p.stock : "") + '"></label>' +
         '<label class="sr" for="ps-' + p.id + '">狀態</label><select class="o-status" id="ps-' + p.id + '" data-act="status">' + opts + "</select>" +
         '<button type="button" class="icon" data-act="up" aria-label="向上移" ' + (i === 0 ? "disabled" : "") + ">▲</button>" +
         '<button type="button" class="icon" data-act="down" aria-label="向下移" ' + (i === products.length - 1 ? "disabled" : "") + ">▼</button>" +
@@ -195,7 +232,14 @@ if (!cfg) {
     }
   });
   $("#products").addEventListener("change", (e) => {
-    const sel = e.target.closest('select[data-act="status"]'); const card = e.target.closest(".prod"); if (!sel || !card) return;
+    const card = e.target.closest(".prod"); if (!card) return;
+    const stk = e.target.closest('input[data-act="stock"]');
+    if (stk) {
+      const v = stk.value.trim();
+      updateDoc(doc(db, "products", card.dataset.id), { stock: v === "" ? deleteField() : Math.round(Number(v)) }).catch(() => notice("儲存失敗，請再試。"));
+      return;
+    }
+    const sel = e.target.closest('select[data-act="status"]'); if (!sel) return;
     updateDoc(doc(db, "products", card.dataset.id), { status: sel.value }).catch(() => notice("儲存失敗，請再試。"));
   });
 
@@ -226,10 +270,21 @@ if (!cfg) {
     const ch = p ? chOf(p) : ["stock", "sf"];
     Object.keys(CHANNELS).forEach((k) => { $("#p-ch-" + k).checked = ch.includes(k); });
     $("#p-eta").value = p ? p.eta || "" : "";
+    $("#p-stock").value = p && typeof p.stock === "number" ? p.stock : "";
+    $("#p-aliases").value = p ? (p.aliases || []).join("\n") : "";
+    $("#p-addons").innerHTML = ""; (p && p.addons ? p.addons : []).forEach((a) => addAddonRow(a));
     $("#p-photo").value = ""; setPhoto(p ? p.image : "");
     $("#p-error").hidden = true; $("#p-delete").hidden = !p; $("#p-confirm").hidden = true;
     dlg.showModal();
   }
+  // add-on rows: another product + its special price
+  function addAddonRow(a) {
+    const opts = products.filter((x) => !editing || x.id !== editing.id).map((x) => '<option value="' + esc(x.id) + '"' + (a && a.id === x.id ? " selected" : "") + ">" + esc(x.group + " " + x.name) + "（" + money(x.price) + "）</option>").join("");
+    $("#p-addons").insertAdjacentHTML("beforeend", '<div class="addon-row"><label class="mini grow">加購商品<select class="field ad-prod">' + opts + '</select></label>' +
+      '<label class="mini">加購價（HK$）<input class="field ad-price" type="number" min="0" step="any" inputmode="decimal" value="' + esc(a ? a.price : "") + '"></label><button type="button" class="icon ad-del" aria-label="移除">✕</button></div>');
+  }
+  $("#p-addon-add").addEventListener("click", () => { if (products.filter((x) => !editing || x.id !== editing.id).length) addAddonRow(null); else { $("#p-error").textContent = "請先建立其他商品，才可以設定加購。"; $("#p-error").hidden = false; } });
+  $("#p-addons").addEventListener("click", (e) => { const d = e.target.closest(".ad-del"); if (d) d.closest(".addon-row").remove(); });
   $("#add-product").addEventListener("click", () => openProduct(null));
   $("#p-cancel").addEventListener("click", () => dlg.close());
   $("#p-photo-remove").addEventListener("click", () => { $("#p-photo").value = ""; setPhoto(""); });
@@ -264,7 +319,12 @@ if (!cfg) {
     const channels = Object.keys(CHANNELS).filter((k) => $("#p-ch-" + k).checked);
     if (!channels.length) { err.textContent = "請最少選擇一種供應方式（格仔舖現貨、訂購或可寄順豐）。"; err.hidden = false; return; }
     err.hidden = true; btn.disabled = true; btn.textContent = "儲存中…";
-    const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value, channels, eta: $("#p-eta").value.trim() };
+    const stockRaw = $("#p-stock").value.trim();
+    const aliases = [...new Set($("#p-aliases").value.split("\n").map((x) => x.trim()).filter(Boolean))].slice(0, 30);
+    const addons = [...document.querySelectorAll("#p-addons .addon-row")].map((r) => ({ id: r.querySelector(".ad-prod").value, price: Number(r.querySelector(".ad-price").value) }))
+      .filter((a) => a.id && Number.isFinite(a.price) && a.price >= 0);
+    const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value, channels, eta: $("#p-eta").value.trim(), aliases, addons };
+    if (stockRaw !== "") data.stock = Math.round(Number(stockRaw)); else if (editing && typeof editing.stock === "number") data.stock = deleteField();
     const job = editing
       ? updateDoc(doc(db, "products", editing.id), data)
       : addDoc(collection(db, "products"), { ...data, order: products.reduce((m, p) => Math.max(m, p.order || 0), 0) + 1 });
@@ -385,12 +445,12 @@ if (!cfg) {
     ["nav", "頂部及選單"], ["hero", "首頁主視覺"], ["shelf", "價目區"], ["chan", "供應方式標籤"], ["how", "購買流程"], ["info", "購買須知"],
     ["ord", "落單區"], ["gate", "登入提示"], ["form", "落單表格"], ["item", "貨品選擇"], ["delivery", "交收方式"], ["err", "落單提示訊息"],
     ["review", "核對訂單視窗"], ["acct", "帳戶（登入／註冊）"], ["store", "門市"], ["faq", "常見問題"], ["foot", "頁尾"], ["legal", "條款連結"],
-    ["pay", "付款頁面"], ["terms", "服務條款頁面"], ["priv", "私隱政策頁面"], ["idx", "瀏覽器標題"]
+    ["pay", "付款頁面"], ["me", "會員及訂單頁面"], ["prog", "訂單進度名稱"], ["addon", "加購"], ["terms", "服務條款頁面"], ["priv", "私隱政策頁面"], ["idx", "瀏覽器標題"]
   ];
   let catalog = [], textMap = {}, edits = {}, textsDirty = false, catalogReady = false;
 
   async function loadCatalog() {
-    const pages = ["index.html", "pay.html", "terms.html", "privacy.html"];
+    const pages = ["index.html", "pay.html", "me.html", "terms.html", "privacy.html"];
     const items = new Map();
     for (const file of pages) {
       try {

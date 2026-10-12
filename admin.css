@@ -197,3 +197,17 @@ input.inl { width: 90px; min-height: 40px; padding: 4px 8px; border: 1px solid v
   .pos { grid-template-columns: 1fr; } .pos-right { position: static; }
   .imp-opts { grid-template-columns: 1fr; }
 }
+
+.addon-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; padding: 8px 0; border-top: 1px solid var(--line); }
+.addon-row .mini { flex: 0 1 140px; } .addon-row .mini.grow { flex: 2 1 220px; } .addon-row .icon { width: 40px; height: 40px; }
+.stk { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 13px !important; }
+.stk input.inl { width: 84px; }
+
+.o-track { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.o-track .mini { flex: 0 1 190px; } .o-track .mini.grow { flex: 2 1 220px; }
+.o-track .hint { flex: 1 1 100%; }
+.tier-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; padding: 8px 0; border-top: 1px solid var(--line); }
+.tier-row .mini { flex: 0 1 160px; } .tier-row .mini.grow { flex: 2 1 200px; } .tier-row .icon { width: 40px; height: 40px; }
+.cl-addons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.addon-btn { min-height: 38px !important; padding: 4px 12px !important; font-size: 13px !important; }
+.block { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }

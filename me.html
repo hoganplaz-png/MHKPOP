@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title data-t="me.title">我的會員及訂單 · MHKPOP</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="me.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <div class="nav-actions"><a class="btn btn-line" href="/" data-t="pay.back">返回網站</a><button type="button" class="btn btn-line" id="me-signout" hidden data-t="acct.signout">登出</button></div>
+    </div>
+  </header>
+
+  <main class="wrap me">
+    <h1 data-t="me.h1">我的會員及訂單</h1>
+
+    <p class="loading" id="me-loading" data-t="me.loading">正在載入…</p>
+
+    <section id="me-login" hidden>
+      <p class="lead" data-t="me.login.t">請先登入，才可以查看會員積分和訂單。</p>
+      <p><a class="btn btn-solid btn-lg" href="index.html#login" data-t="me.login.btn">登入 / 註冊</a></p>
+    </section>
+
+    <div id="me-app" hidden>
+      <section class="member-card" id="me-card" aria-label="會員">
+        <div class="mc-top"><div><small class="caps" data-t="me.card.member">會員</small><b id="mc-name"></b><span id="mc-email"></span></div><span class="mc-tier" id="mc-tier"></span></div>
+        <div class="mc-stats">
+          <div><small data-t="me.card.points">積分</small><b id="mc-points">0</b></div>
+          <div><small data-t="me.card.spent">累積消費</small><b id="mc-spent">HK$0</b></div>
+        </div>
+        <p class="mc-next" id="mc-next"></p>
+        <div class="mc-bar" id="mc-bar" hidden><span id="mc-fill"></span></div>
+        <p class="mc-rule" id="mc-rule"></p>
+      </section>
+
+      <h2 data-t="me.orders.h">我的訂單</h2>
+      <p class="empty" id="me-empty" hidden data-t="me.orders.empty">未有訂單。</p>
+      <div id="me-orders"></div>
+
+      <details class="pts-log" id="me-logs-box">
+        <summary data-t="me.logs.h">積分紀錄</summary>
+        <div id="me-logs"></div>
+      </details>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="me.js"></script>
+</body>
+</html>

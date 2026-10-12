@@ -7,6 +7,7 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   };
+  function dn(g, n) { g = String(g || "").trim(); n = String(n || "").trim(); return !g || n.toLowerCase().indexOf(g.toLowerCase()) >= 0 ? n : g + " " + n; }
   var money = function (n) { return "HK$" + n; };
   var T = function (k, vars) { return window.MHT.t(k, undefined, vars); };
 
@@ -26,7 +27,7 @@
     if (order.items && order.items.length) {
       $("#order-sum").hidden = false;
       $("#sum-body").innerHTML = order.items.map(function (i) {
-        return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
+        return "<div><span>" + esc(dn(i.group, i.name)) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
       }).join("") + '<div class="tot"><span>' + esc(T("pay.total")) + "</span><span>" + money(order.total) + "</span></div>" +
         (order.delivery ? '<div class="meta"><span>' + esc(T("pay.delivery", { delivery: order.delivery })) + "</span><span></span></div>" : "");
     }

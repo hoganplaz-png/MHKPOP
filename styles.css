@@ -263,3 +263,9 @@ select.mode { display: block; margin-top: 8px; min-height: 44px; padding: 6px 12
   .nav-actions .btn { flex: 1 1 0; padding-left: 12px; padding-right: 12px; }
   #acct-btn { max-width: none; }
 }
+
+/* add-ons and low stock */
+.addon-note { margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--ink); background: var(--panel); border-radius: 10px; padding: 6px 10px; line-height: 1.6; }
+.eta.low { color: #8a1c14; font-weight: 700; }
+.addons { flex: 1 1 100%; }
+.addon-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 14px; margin-top: 6px; padding: 8px 12px; border-radius: 12px; background: var(--panel); font-size: 14px; font-weight: 700; }

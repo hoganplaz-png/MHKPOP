@@ -51,6 +51,7 @@
         <button type="button" role="tab" class="tab" id="t-purchases" data-tab="purchases" aria-selected="false" aria-controls="p-purchases">進貨及成本</button>
         <button type="button" role="tab" class="tab" id="t-expenses" data-tab="expenses" aria-selected="false" aria-controls="p-expenses">租金及開支</button>
         <button type="button" role="tab" class="tab" id="t-profit" data-tab="profit" aria-selected="false" aria-controls="p-profit">利潤</button>
+        <button type="button" role="tab" class="tab" id="t-members" data-tab="members" aria-selected="false" aria-controls="p-members">會員</button>
       </div>
 
       <!-- 訂單 -->
@@ -241,6 +242,33 @@
         <div id="pr-body"></div>
       </section>
 
+      <!-- 會員 -->
+      <section id="p-members" role="tabpanel" aria-labelledby="t-members" hidden>
+        <details class="card-box" id="mb-settings">
+          <summary>積分及會員等級設定</summary>
+          <form id="mb-form">
+            <div class="toggle-row">
+              <input id="mb-enabled" type="checkbox">
+              <label for="mb-enabled"><b>開啟會員積分</b><small>每張訂單在你按「已確認」時，自動為客人加積分。取消訂單會自動扣回。</small></label>
+            </div>
+            <label for="mb-per">每消費 HK$ 得 1 分（未計等級加成）</label>
+            <input id="mb-per" class="field" type="number" min="0.01" step="any" inputmode="decimal" style="max-width:240px">
+            <h3 class="sub">會員等級（按累積消費自動升級）</h3>
+            <div id="mb-tiers"></div>
+            <button type="button" class="btn btn-line" id="mb-addtier">＋ 新增等級</button>
+            <p class="error" id="mb-error" role="alert" hidden></p>
+            <div class="save-row"><button type="submit" class="btn btn-solid">儲存設定</button><span class="saving" id="mb-saved" aria-live="polite"></span></div>
+          </form>
+        </details>
+        <div class="tools">
+          <p class="hint">所有註冊帳戶自動成為會員。積分按已確認的網站訂單計算，客人可以在「我的會員及訂單」頁看到積分、等級和訂單進度。客人用積分換優惠時，在「調整／紀錄」扣減積分。</p>
+          <div class="tools-right"><label class="sr" for="mb-search">搜尋會員</label><input id="mb-search" class="field" type="search" placeholder="搜尋姓名或電郵"></div>
+        </div>
+        <div class="stat-row" id="mb-stats"></div>
+        <p class="empty" id="mb-empty" hidden>未有會員。客人註冊帳戶並登入後會出現在這裡。</p>
+        <div id="mb-list"></div>
+      </section>
+
       <!-- 全部文字 -->
       <section id="p-texts" role="tabpanel" aria-labelledby="t-texts" hidden>
         <div class="tools">
@@ -277,11 +305,23 @@
         <option value="store">只限門市</option>
         <option value="hidden">隱藏（不在網站顯示）</option>
       </select>
+      <div class="grid2">
+        <div><label for="p-stock">存庫（件數）</label><input id="p-stock" class="field" type="number" step="1" inputmode="numeric" placeholder="留空 = 不追蹤存庫">
+          <p class="hint">收銀、貼上 POS 紀錄、網站訂單每賣出一件，這裡會自動減一。存庫是 0 時網站自動顯示售罄。</p></div>
+        <div><label for="p-aliases">POS 上的名稱（別名，選填）</label><textarea id="p-aliases" class="field" rows="3" placeholder="每行一個，例如 TXT-PB"></textarea>
+          <p class="hint">One POS 用不同名稱時，在這裡加上，貼上紀錄時就會自動配對。你在貼上時手動揀選過的名稱也會自動記住。</p></div>
+      </div>
       <fieldset class="chan-set">
         <legend>供應方式（可以選多項）</legend>
         <label class="check"><input type="checkbox" id="p-ch-stock" value="stock"><span>格仔舖現貨<small>門市有貨，售完即止</small></span></label>
         <label class="check"><input type="checkbox" id="p-ch-preorder" value="preorder"><span>訂購<small>需要向供應商訂購，到貨日期是預計</small></span></label>
         <label class="check"><input type="checkbox" id="p-ch-sf" value="sf"><span>可寄順豐<small>可以順豐到付寄送；不選的話只可門市自取</small></span></label>
+      </fieldset>
+      <fieldset class="chan-set">
+        <legend>加購優惠（買這款時，可以特價加購其他商品）</legend>
+        <div id="p-addons"></div>
+        <button type="button" class="btn btn-line" id="p-addon-add">＋ 新增加購商品</button>
+        <p class="hint">例如買專輯可用 HK$10 加購小卡。加購商品要先在商品清單內建立（可以設為「隱藏」，只作加購用）。加購數量不可以多過所買專輯的數量。</p>
       </fieldset>
       <label for="p-eta">預計到貨時間（只用於「訂購」，選填）</label>
       <input id="p-eta" class="field" type="text" maxlength="60" placeholder="例如 2026 年 11 月中">
@@ -388,6 +428,7 @@
       <select id="b-alloc" class="field"><option value="qty">按件數平均（每件分到一樣）</option><option value="value">按貨品金額比例（貴的貨分多啲）</option></select>
       <label for="b-note">備註（選填）</label>
       <input id="b-note" class="field" type="text" maxlength="400">
+      <label class="check" id="b-addstock-wrap"><input type="checkbox" id="b-addstock" checked><span>把這次入貨的數量加到「商品」的存庫<small>只適用於新增進貨單，並且只會加到有填寫存庫的商品。之後想改，直接在「商品」分頁改存庫。</small></span></label>
       <div class="calc-box" id="b-summary" aria-live="polite"></div>
       <p class="error" id="b-error" role="alert" hidden></p>
       <div class="dlg-actions">
@@ -437,6 +478,24 @@
       </div>
       <p class="hint">沒有進貨紀錄的東西（例如周邊、包裝）可以在這裡手動輸入；填了成本才會計入利潤。</p>
       <div class="dlg-actions"><button type="submit" class="btn btn-solid">加入本單</button><button type="button" class="btn btn-line" id="c-cancel">取消</button></div>
+    </form>
+  </dialog>
+
+  <!-- 會員積分 -->
+  <dialog id="mdlg" aria-labelledby="mdlg-title">
+    <form id="mform" method="dialog">
+      <h2 id="mdlg-title">積分</h2>
+      <p class="hint" id="m-balance"></p>
+      <div class="grid2">
+        <div><label for="m-delta">調整積分（加分填正數，扣分填負數）</label><input id="m-delta" class="field" type="number" step="1" inputmode="numeric" placeholder="例如 -100"></div>
+        <div><label for="m-reason">原因</label><input id="m-reason" class="field" type="text" maxlength="150" placeholder="例如 兌換 HK$10 優惠"></div>
+      </div>
+      <label for="m-note">會員備註（只有你看到）</label>
+      <input id="m-note" class="field" type="text" maxlength="250">
+      <p class="error" id="m-error" role="alert" hidden></p>
+      <h3 class="sub">積分紀錄</h3>
+      <div id="m-logs"></div>
+      <div class="dlg-actions"><button type="submit" class="btn btn-solid">儲存</button><button type="button" class="btn btn-line" id="m-cancel">關閉</button></div>
     </form>
   </dialog>
 

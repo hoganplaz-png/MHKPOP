@@ -1,0 +1,92 @@
+// "My membership and orders": points, member tier, and every order with its progress.
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+  var T = function (k, v) { return window.MHT.t(k, undefined, v); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  function dn(g, n) { g = String(g || "").trim(); n = String(n || "").trim(); return !g || n.toLowerCase().indexOf(g.toLowerCase()) >= 0 ? n : g + " " + n; }
+  var money = function (n) { return "HK$" + (Math.round(n * 100) / 100).toLocaleString("en-US"); };
+  var STATUS = { new: "me.status.new", confirmed: "me.status.confirmed", done: "me.status.done", cancelled: "me.status.cancelled" };
+  var client = null;
+
+  function show(which) {
+    $("#me-loading").hidden = which !== "loading"; $("#me-login").hidden = which !== "login"; $("#me-app").hidden = which !== "app";
+  }
+  function fmt(ts) { return ts && ts.toDate ? ts.toDate().toLocaleString("zh-HK", { hour12: false }) : ""; }
+
+  window.MHT.init();
+  window.MHFB.load().then(function (c) {
+    client = c;
+    if (!c) { show("login"); return; }
+    var done = false;
+    c.au.onAuthStateChanged(c.auth, function (u) {
+      if (done && !u) { show("login"); $("#me-signout").hidden = true; return; }
+      done = true;
+      if (!u) { show("login"); return; }
+      $("#me-signout").hidden = false;
+      load(u);
+    });
+  }).catch(function () { show("login"); });
+
+  $("#me-signout").addEventListener("click", function () { if (client) client.au.signOut(client.auth); });
+
+  function load(user) {
+    var fs = client.fs, db = client.db;
+    show("loading");
+    Promise.all([
+      fs.getDoc(fs.doc(db, "members", user.uid)).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
+      fs.getDocs(fs.query(fs.collection(db, "orders"), fs.where("uid", "==", user.uid))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
+      fs.getDocs(fs.query(fs.collection(db, "pointlogs"), fs.where("uid", "==", user.uid))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
+      fs.getDoc(fs.doc(db, "settings", "member")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
+      import("./shoplib.js"),
+      window.MHT.init()
+    ]).then(function (r) {
+      render(user, r[0], r[1], r[2], r[3], r[4]);
+    });
+  }
+
+  function render(user, member, orders, logs, settingsRaw, L) {
+    var S = L.memberSettings(settingsRaw);
+    var spent = member ? Number(member.spent) || 0 : 0, points = member ? Number(member.points) || 0 : 0;
+    var info = L.tierFor(S, spent);
+    $("#mc-name").textContent = (member && member.name) || user.displayName || user.email;
+    $("#mc-email").textContent = user.email || "";
+    $("#mc-tier").textContent = info.tier.name; $("#mc-points").textContent = points; $("#mc-spent").textContent = money(spent);
+    if (info.next) {
+      $("#mc-next").textContent = T("me.next", { amount: money(info.next.min - spent), tier: info.next.name });
+      var from = info.tier.min, pct = Math.max(0, Math.min(100, ((spent - from) / (info.next.min - from)) * 100));
+      $("#mc-fill").style.width = pct + "%"; $("#mc-bar").hidden = false;
+    } else { $("#mc-next").textContent = T("me.top"); $("#mc-bar").hidden = true; }
+    $("#mc-rule").textContent = S.enabled ? T("me.rule", { per: S.per, mult: info.tier.mult }) : T("me.rule.off");
+    $("#me-card").hidden = !S.enabled && !member;
+
+    orders.sort(function (a, b) { return ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0); });
+    $("#me-empty").hidden = orders.length > 0;
+    $("#me-orders").innerHTML = orders.map(function (o) { return orderHtml(o, L); }).join("");
+
+    logs.sort(function (a, b) { return ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0); });
+    $("#me-logs-box").hidden = !logs.length;
+    $("#me-logs").innerHTML = logs.map(function (l) {
+      return '<div class="pl-row"><b>' + (l.points > 0 ? "+" : "") + esc(l.points) + "</b><span>" + esc(l.note || l.type) + '</span><span class="mo-date">' + esc(fmt(l.createdAt)) + "</span></div>";
+    }).join("");
+    show("app");
+  }
+
+  function orderHtml(o, L) {
+    var st = L.orderSteps(o), items = (o.items || []).map(function (i) {
+      return "<li><span>" + (i.addon ? esc(T("me.addon")) + " " : "") + esc(dn(i.group, i.name)) + " × " + esc(i.qty) + (i.mode === "preorder" ? " · " + esc(T("chan.preorder")) : "") + "</span><span>" + money((Number(i.price) || 0) * (Number(i.qty) || 0)) + "</span></li>";
+    }).join("");
+    var timeline = st.cancelled
+      ? '<p class="mo-cancel">' + esc(T("me.cancelled")) + "</p>"
+      : '<ol class="steps-line" style="--n:' + st.steps.length + '">' + st.steps.map(function (s) { return '<li class="' + (s.current ? "current" : s.done ? "done" : "") + '"' + (s.current ? ' aria-current="step"' : "") + ">" + esc(T("prog." + s.key, s.label)) + "</li>"; }).join("") + "</ol>";
+    var meta = [];
+    meta.push(esc(T("me.delivery")) + "：" + esc(o.delivery || ""));
+    if (o.address) meta.push(esc(T("me.address")) + "：" + esc(o.address));
+    if (o.contact) meta.push(esc(T("me.contact")) + "：" + esc(o.contact));
+    if (o.notes) meta.push(esc(T("me.notes")) + "：" + esc(o.notes));
+    var pay = o.status === "new" ? '<div class="mo-actions"><a class="btn btn-solid" href="pay.html?o=' + encodeURIComponent(o.orderNo) + "&t=" + encodeURIComponent(o.total) + '">' + esc(T("me.pay")) + "</a></div>" : "";
+    return '<article class="mo"><div class="mo-head"><div><div class="mo-no">' + esc(o.orderNo) + '</div><div class="mo-date">' + esc(fmt(o.createdAt)) + '</div></div><div class="mo-total">' + money(Number(o.total) || 0) + "</div></div>" + timeline +
+      (o.tracking ? '<p class="mo-note"><b>' + esc(T("me.tracking")) + "：</b>" + esc(o.tracking) + "</p>" : "") + (o.customerNote ? '<p class="mo-note">' + esc(o.customerNote) + "</p>" : "") +
+      '<ul class="mo-items">' + items + '</ul><p class="mo-meta">' + meta.join("<br>") + "</p>" + pay + "</article>";
+  }
+})();

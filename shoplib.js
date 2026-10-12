@@ -434,3 +434,93 @@ export function saleKey(s) {
   let h = 5381; for (let i = 0; i < base.length; i++) h = ((h << 5) + h + base.charCodeAt(i)) | 0;
   return "P-" + s.date + "-" + (s.receipt ? s.receipt.replace(/[^A-Za-z0-9_-]/g, "") : (h >>> 0).toString(36));
 }
+
+// ================= website products: matching and shared stock =================
+// product = { id, group, name, price, stock?: number, aliases?: string[], addons?: [{ id, price }] }
+// A product with no `stock` number is not counted. A product with one has a single stock number that every way of selling it
+// (收銀, pasted POS record, website order) takes from.
+export function matchProducts(name, products, min = 0.6) {
+  return (products || []).map((p) => {
+    let s = Math.max(similarity(name, dn(p.group, p.name)), similarity(name, p.name));
+    (p.aliases || []).forEach((a) => { s = Math.max(s, normName(a) === normName(name) ? 1 : similarity(name, a) * 0.98); });
+    return { p, s };
+  }).filter((x) => x.s >= min).sort((a, b) => b.s - a.s);
+}
+export const bestProduct = (name, products) => { const m = matchProducts(name, products); return m.length ? m[0].p : null; };
+
+// purchase lines that belong to a product (oldest first, as allLines returns them)
+export function candidateLines(product, lines) {
+  const label = dn(product.group, product.name);
+  return (lines || []).filter((l) => similarity(dn(l.group, l.name), label) >= 0.85 || similarity(l.name, product.name) >= 0.9);
+}
+
+// Turns one sold item into sale items: finds the product (its stock) and the purchase lines (its cost).
+// item: { name, qty, price, productId?: "" (auto) | "none" | id, candIds?: [lineId], lineId?: "auto" | "none" | id, addon?: bool }
+// env: { products, lines } are working copies; stock and line stock are taken off them so the next item sees the change.
+export function buildItems(item, env) {
+  const qty = Number(item.qty) || 0, price = Number(item.price) || 0;
+  let product = null;
+  if (item.productId && item.productId !== "none") product = env.products.find((p) => p.id === item.productId) || null;
+  else if (!item.productId) product = bestProduct(item.name, env.products);
+  let cands;
+  if (item.candIds) cands = env.lines.filter((l) => item.candIds.includes(l.id));
+  else if (item.lineId && item.lineId !== "auto" && item.lineId !== "none") cands = env.lines.filter((l) => l.id === item.lineId);
+  else if (item.lineId === "none") cands = [];
+  else cands = product ? candidateLines(product, env.lines) : matchLines(item.name, env.lines);
+  const parts = allocateFrom(cands, qty); consume(env.lines, parts);
+  const tracked = !!product && typeof product.stock === "number";
+  if (tracked) product.stock -= qty;
+  const items = parts.map((pt) => {
+    const l = env.lines.find((x) => x.id === pt.lineId), base = product || l;
+    const it = { name: base ? base.name : item.name, group: base ? base.group || "" : "", qty: pt.qty, price, lineId: pt.lineId, productId: product ? product.id : "", stk: tracked };
+    if (item.name && it.name !== item.name) it.posName = item.name;
+    if (item.addon) it.addon = true;
+    if (item.cost != null && Number.isFinite(Number(item.cost)) && !pt.lineId) it.cost = Number(item.cost);
+    return it;
+  });
+  return { items, delta: tracked ? { [product.id]: qty } : {}, product, tracked };
+}
+
+// stock to give back when a sale is removed: { productId: qty } for items that took stock
+export function stockToRestore(sale) {
+  const m = {};
+  (sale.items || []).forEach((i) => { if (i.stk && i.productId) m[i.productId] = (m[i.productId] || 0) + (Number(i.qty) || 0); });
+  return m;
+}
+
+// ================= add-on (加購) =================
+export function addonsOf(product, products) {
+  return (product.addons || []).map((a) => { const t = products.find((p) => p.id === a.id); return t ? { product: t, price: Number(a.price) || 0 } : null; }).filter(Boolean);
+}
+
+// ================= membership =================
+export const DEFAULT_MEMBER = { enabled: true, per: 10, tiers: [{ name: "一般會員", min: 0, mult: 1 }, { name: "銀卡會員", min: 1500, mult: 1.2 }, { name: "金卡會員", min: 5000, mult: 1.5 }] };
+export const memberSettings = (s) => ({ enabled: s && s.enabled !== undefined ? !!s.enabled : DEFAULT_MEMBER.enabled, per: s && Number(s.per) > 0 ? Number(s.per) : DEFAULT_MEMBER.per, tiers: s && Array.isArray(s.tiers) && s.tiers.length ? s.tiers : DEFAULT_MEMBER.tiers });
+export function tierFor(settings, spent) {
+  const t = (settings.tiers || []).slice().sort((a, b) => a.min - b.min);
+  let cur = t[0] || { name: "會員", min: 0, mult: 1 };
+  t.forEach((x) => { if (spent >= x.min) cur = x; });
+  return { tier: cur, next: t.find((x) => x.min > spent) || null };
+}
+export function pointsFor(total, settings, spentBefore) {
+  if (!settings.enabled || !(settings.per > 0) || !(total > 0)) return 0;
+  return Math.max(0, Math.floor((total / settings.per) * (tierFor(settings, spentBefore || 0).tier.mult || 1)));
+}
+
+// ================= order progress =================
+export const PROGRESS = [["received", "已收到訂單"], ["paid", "已確認收款"], ["ordering", "訂購中／備貨中"], ["arrived", "貨品已到"], ["shipped", "已寄出"], ["ready", "可到門市取貨"], ["done", "已完成"]];
+const pIdx = (k) => PROGRESS.findIndex((p) => p[0] === k);
+export function progressKey(order) {
+  if (order.status === "cancelled") return "cancelled";
+  return order.progress && pIdx(order.progress) >= 0 ? order.progress : order.status === "done" ? "done" : order.status === "confirmed" ? "paid" : "received";
+}
+// the steps this order goes through, and which one it is at
+export function orderSteps(order) {
+  const hasPre = (order.items || []).some((i) => i.mode === "preorder");
+  const pickup = !order.address;
+  const keys = ["received", "paid"].concat(hasPre ? ["ordering", "arrived"] : [], [pickup ? "ready" : "shipped", "done"]);
+  const cur = progressKey(order), ci = pIdx(cur);
+  let at = -1;
+  keys.forEach((k, i) => { if (pIdx(k) <= ci) at = i; });
+  return { cancelled: cur === "cancelled", steps: keys.map((k, i) => ({ key: k, label: PROGRESS[pIdx(k)][1], done: i < at, current: i === at })) };
+}
