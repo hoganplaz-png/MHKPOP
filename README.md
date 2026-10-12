@@ -3,7 +3,7 @@
 Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list, **create an account**, and order **only through the order form**.
 You run everything from the admin page, with no coding.
 
-Live site: https://mhkpop-4cf2f.web.app  ·  Admin page: https://mhkpop-4cf2f.web.app/admin
+Live site: https://mhkpop.web.app  ·  Admin page: https://mhkpop.web.app/admin  (the old address mhkpop-4cf2f.web.app redirects here)
 
 ## The admin page (/admin)
 Sign in with the admin email and the password you set in Firebase Authentication.
