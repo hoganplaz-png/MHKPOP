@@ -69,6 +69,17 @@ jobs:
           PID: ${{ steps.pid.outputs.id }}
           ORDERS: ${{ steps.orders.outputs.on }}
         run: |
-          TARGETS=hosting
-          if [ "$ORDERS" = "true" ]; then TARGETS=hosting,firestore:rules; fi
-          npx --yes firebase-tools@13.35.1 deploy --only "$TARGETS" --project "$PID" --non-interactive
+          FB="npx --yes firebase-tools@13.35.1"
+          if [ "$ORDERS" != "true" ]; then
+            $FB deploy --only hosting --project "$PID" --non-interactive
+            exit 0
+          fi
+          if $FB deploy --only hosting,firestore:rules --project "$PID" --non-interactive; then
+            exit 0
+          fi
+          echo "::error::The security rules could not be published, so the order form stays switched off. The website itself is still updated."
+          pip install --quiet google-auth requests
+          python3 scripts/diagnose.py || true
+          git checkout -- firebase-config.js
+          $FB deploy --only hosting --project "$PID" --non-interactive
+          exit 1
