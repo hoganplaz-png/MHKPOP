@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /pay
+Disallow: /me
+
+Sitemap: https://mhkpop.web.app/sitemap.xml
