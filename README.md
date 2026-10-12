@@ -15,7 +15,19 @@ After you save, the Sheet updates the site within a few minutes. A change to `se
 
 ## Setup (once, about 20 minutes)
 
-### 1. Put the site online (free)
+### Firebase Hosting (free plan)
+1. Make a project at https://console.firebase.google.com (Add project, any name, Google Analytics off is fine).
+2. On your computer install Node.js (https://nodejs.org), then open a terminal in this folder and run:
+   - `npm install -g firebase-tools`
+   - `firebase login`  (sign in with your Google account)
+   - `firebase use --add`  (pick your project, give it any alias)
+   - `firebase deploy --only hosting`
+3. The terminal prints your link, `https://<project-id>.web.app`. Add your own domain later in Firebase console, Hosting, Add custom domain.
+4. To update the site after editing `settings.js` or images, run `firebase deploy --only hosting` again. Sheet changes need no deploy.
+
+No computer? Open https://shell.cloud.google.com, upload the website ZIP, unzip it, and run the same `firebase use --add` and `firebase deploy --only hosting` commands there.
+
+### 1. Other free hosts (GitHub Pages, Netlify)
 1. On github.com open this repository, then **Settings → Pages**.
 2. Under **Build and deployment**, choose **Deploy from a branch**, pick this branch and **/ (root)**, then **Save**.
 3. After about a minute your site is at `https://<your-github-name>.github.io/MH/`. Put this link in your Instagram bio.
