@@ -1,4 +1,4 @@
-# mh.kpop.sell.com shop website
+# MHKPOP shop website
 
 Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list, **create an account**, and order **only through the order form**.
 You run everything from the admin page, with no coding.

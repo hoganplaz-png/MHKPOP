@@ -270,8 +270,4 @@ select.mode { display: block; margin-top: 8px; min-height: 44px; padding: 6px 12
 .addons { flex: 1 1 100%; }
 .addon-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 14px; margin-top: 6px; padding: 8px 12px; border-radius: 12px; background: var(--panel); font-size: 14px; font-weight: 700; }
 
-/* site name */
-.brand .brand-name { font-family: Jost, "Noto Sans TC", sans-serif; font-weight: 500; font-size: 17px; letter-spacing: .06em; overflow-wrap: anywhere; }
-.footer .brand-name { font-size: 15px; color: var(--ink); }
-h1.site-name { font-size: clamp(28px, 7.2vw, 64px); letter-spacing: .01em; }
 html, body { overflow-x: clip; }

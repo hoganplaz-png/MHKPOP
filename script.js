@@ -155,7 +155,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
       var k = kindOf(p), tone = TONES[i % TONES.length];
       var sleeve = p.image
         ? '<img src="' + esc(imgSrc(p.image)) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">'
-        : '<div class="sleeve-ph"><span class="caps">mh.kpop.sell</span><b>' + esc(p.group) + "</b></div>";
+        : '<div class="sleeve-ph"><span class="caps">MHKPOP</span><b>' + esc(p.group) + "</b></div>";
       var tag = k === "sold" ? T("shelf.soldTag") : p.tag;
       var foot = k === "sold" ? '<span class="state">' + esc(T("shelf.soldFoot")) + "</span>"
         : k === "store" ? '<span class="state">' + esc(T("shelf.storeFoot")) + "</span>"
