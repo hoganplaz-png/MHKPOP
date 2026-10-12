@@ -8,6 +8,7 @@
     });
   };
   var money = function (n) { return "HK$" + n; };
+  var T = function (k, vars) { return window.MHT.t(k, undefined, vars); };
 
   // ---------- the order that was just confirmed ----------
   var qs = new URLSearchParams(location.search), no = qs.get("o") || "", amt = Number(qs.get("t"));
@@ -17,25 +18,27 @@
   var valid = /^MH-[A-Z0-9]{3,18}$/.test(order.orderNo) && isFinite(order.total) && order.total >= 0;
   if (!valid) { $("#missing").hidden = false; return; }
   $("#pay").hidden = false;
-  $("#pay-no").textContent = "訂單 " + order.orderNo;
   $("#pay-amount").textContent = money(order.total);
   $("#ref-no").textContent = order.orderNo;
   $("#ref-amount").textContent = money(order.total);
-  if (order.items && order.items.length) {
-    $("#order-sum").hidden = false;
-    $("#sum-body").innerHTML = order.items.map(function (i) {
-      return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
-    }).join("") + '<div class="tot"><span>貨品總額（未計運費）</span><span>' + money(order.total) + "</span></div>" +
-      (order.delivery ? '<div class="meta"><span>交收：' + esc(order.delivery) + "</span><span></span></div>" : "");
+  function paintOrder() {
+    $("#pay-no").textContent = T("pay.order", { no: order.orderNo });
+    if (order.items && order.items.length) {
+      $("#order-sum").hidden = false;
+      $("#sum-body").innerHTML = order.items.map(function (i) {
+        return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
+      }).join("") + '<div class="tot"><span>' + esc(T("pay.total")) + "</span><span>" + money(order.total) + "</span></div>" +
+        (order.delivery ? '<div class="meta"><span>' + esc(T("pay.delivery", { delivery: order.delivery })) + "</span><span></span></div>" : "");
+    }
   }
+  paintOrder();
 
   // ---------- shop details and payment methods (admin page content, with built-in fallback) ----------
-  var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
   function loadRemote() {
-    if (!window.FIREBASE_CONFIG) return Promise.resolve(null);
     var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 6000); });
-    var work = Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
-      var fs = m[1], db = fs.getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG));
+    var work = window.MHFB.load().then(function (c) {
+      if (!c) return null;
+      var fs = c.fs, db = c.db;
       return Promise.all([
         fs.getDoc(fs.doc(db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
         fs.getDocs(fs.query(fs.collection(db, "payments"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; })
@@ -59,9 +62,9 @@
     clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("show"); }, 2500);
   }
   function copy(text) {
-    var done = function () { toast("已複製"); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { toast("請長按文字自行複製"); });
-    else toast("請長按文字自行複製");
+    var done = function () { toast(T("pay.copied")); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { toast(T("pay.copyManual")); });
+    else toast(T("pay.copyManual"));
   }
 
   function render() {
@@ -69,17 +72,17 @@
       return '<button type="button" class="method" data-i="' + i + '" aria-pressed="' + (i === current) + '">' + esc(m.name) + "</button>";
     }).join("");
     var m = methods[current], html = "";
-    if (!m) { $("#panel").innerHTML = "<p>暫時未有付款方式。請在 Instagram 私訊我們。</p>"; return; }
+    if (!m) { $("#panel").innerHTML = "<p>" + esc(T("pay.none")) + "</p>"; return; }
     if (m.type === "qr" && imgSrc(m.image)) {
-      html += '<img class="qr" src="' + esc(imgSrc(m.image)) + '" alt="' + esc(m.name) + ' 付款二維碼">';
+      html += '<img class="qr" src="' + esc(imgSrc(m.image)) + '" alt="' + esc(T("pay.qrAlt", { name: m.name })) + '">';
     }
     html += '<div class="body"><h3>' + esc(m.name) + "</h3>";
-    if (m.type === "text") html += '<div class="box">' + esc(m.details) + '</div><button type="button" class="btn btn-line" data-copy="details">複製付款資料</button>';
+    if (m.type === "text") html += '<div class="box">' + esc(m.details) + '</div><button type="button" class="btn btn-line" data-copy="details">' + esc(T("pay.copyDetails")) + "</button>";
     else if (m.details) html += '<p class="details">' + esc(m.details) + "</p>";
-    if (m.type === "link" && linkFor(m)) html += '<a class="btn btn-solid btn-lg" href="' + esc(linkFor(m)) + '" target="_blank" rel="noopener">前往付款 ' + esc(money(order.total)) + "</a>";
+    if (m.type === "link" && linkFor(m)) html += '<a class="btn btn-solid btn-lg" href="' + esc(linkFor(m)) + '" target="_blank" rel="noopener">' + esc(T("pay.go", { amount: money(order.total) })) + "</a>";
     if (m.type === "qr" && imgSrc(m.image)) {
-      html += '<p class="steps-hint">用手機瀏覽？長按二維碼儲存圖片，再在 ' + esc(m.name) + " 的掃描頁面選擇相簿圖片。</p>" +
-        '<a class="btn btn-line" href="' + esc(imgSrc(m.image)) + '" download="' + esc(m.name) + '-qr.jpg">下載二維碼</a>';
+      html += '<p class="steps-hint">' + esc(T("pay.phone", { name: m.name })) + "</p>" +
+        '<a class="btn btn-line" href="' + esc(imgSrc(m.image)) + '" download="' + esc(m.name) + '-qr.jpg">' + esc(T("pay.download")) + "</a>";
     }
     html += "</div>";
     $("#panel").innerHTML = html;
@@ -124,28 +127,43 @@
   }
   if (window.FIREBASE_CONFIG) {
     $("#proof").hidden = false;
+    // The screenshot is tied to the account that placed the order, so the customer must be signed in.
+    var userP = window.MHFB.load().then(function (c) {
+      if (!c) return null;
+      return new Promise(function (resolve) {
+        var off = c.au.onAuthStateChanged(c.auth, function (u) { off(); resolve({ c: c, user: u }); });
+        setTimeout(function () { resolve({ c: c, user: c.auth.currentUser }); }, 5000);
+      });
+    }).catch(function () { return null; });
     $("#proof-file").addEventListener("change", function (e) {
       var f = e.target.files[0]; if (!f) return;
       var err = $("#proof-error"); err.hidden = true; $("#proof-done").hidden = true;
       shrinkPhoto(f).then(function (d) {
         proofImage = d; $("#proof-preview").innerHTML = '<img alt="" src="' + d + '">';
-      }).catch(function () { proofImage = ""; err.textContent = "這張圖片無法使用，請試另一張。"; err.hidden = false; });
+      }).catch(function () { proofImage = ""; err.textContent = T("pay.proof.bad"); err.hidden = false; });
     });
     $("#proof-send").addEventListener("click", function () {
       var err = $("#proof-error"), btn = this;
-      if (!proofImage) { err.textContent = "請先選擇付款截圖。"; err.hidden = false; return; }
-      err.hidden = true; btn.disabled = true; btn.textContent = "傳送中…";
-      Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
-        var fs = m[1], db = fs.getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG));
-        return fs.addDoc(fs.collection(db, "proofs"), { orderNo: order.orderNo, image: proofImage, note: $("#proof-note").value.trim(), createdAt: fs.serverTimestamp() });
+      var fail = function (msg) { err.textContent = msg; err.hidden = false; };
+      if (!proofImage) { fail(T("pay.proof.need")); return; }
+      err.hidden = true; btn.disabled = true; btn.textContent = T("pay.proof.sending");
+      userP.then(function (r) {
+        if (!r || !r.user) { var e = new Error("login"); throw e; }
+        var fs = r.c.fs;
+        return fs.addDoc(fs.collection(r.c.db, "proofs"), { orderNo: order.orderNo, image: proofImage, note: $("#proof-note").value.trim(), createdAt: fs.serverTimestamp() });
       }).then(function () {
         $("#proof-done").hidden = false; proofImage = ""; $("#proof-file").value = ""; $("#proof-preview").innerHTML = ""; $("#proof-note").value = "";
-      }).catch(function () {
-        err.textContent = "傳送失敗。請稍後再試，或把截圖傳到 Instagram。"; err.hidden = false;
-      }).then(function () { btn.disabled = false; btn.textContent = "傳送付款截圖"; });
+      }).catch(function (e) {
+        if (e && e.message === "login") {
+          err.textContent = "";
+          var t = document.createTextNode(T("pay.proof.login") + " ");
+          var a = document.createElement("a"); a.href = "/#order"; a.textContent = T("pay.proof.loginLink");
+          err.appendChild(t); err.appendChild(a); err.hidden = false;
+        } else fail(T("pay.proof.fail"));
+      }).then(function () { btn.disabled = false; btn.textContent = T("pay.proof.send"); });
     });
   }
 
   start(null);
-  loadRemote().then(function (remote) { if (remote) start(remote); });
+  Promise.all([window.MHT.init(), loadRemote()]).then(function (r) { paintOrder(); if (r[1]) start(r[1]); else render(); });
 })();

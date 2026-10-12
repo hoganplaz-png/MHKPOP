@@ -42,6 +42,7 @@
         <button type="button" role="tab" class="tab" id="t-products" data-tab="products" aria-selected="false" aria-controls="p-products">商品</button>
         <button type="button" role="tab" class="tab" id="t-payments" data-tab="payments" aria-selected="false" aria-controls="p-payments">付款方式</button>
         <button type="button" role="tab" class="tab" id="t-site" data-tab="site" aria-selected="false" aria-controls="p-site">網站內容</button>
+        <button type="button" role="tab" class="tab" id="t-texts" data-tab="texts" aria-selected="false" aria-controls="p-texts">全部文字</button>
       </div>
 
       <!-- 訂單 -->
@@ -121,6 +122,21 @@
           </div>
         </form>
       </section>
+
+      <!-- 全部文字 -->
+      <section id="p-texts" role="tabpanel" aria-labelledby="t-texts" hidden>
+        <div class="tools">
+          <p class="hint">這裡可以修改網站上每一句文字，包括服務條款和私隱政策。每項顯示的是現在網站上的文字，修改後按「儲存全部修改」。想用回原本的文字，按該項的「還原」。商品、價錢、地址、營業時間請在其他分頁修改。</p>
+          <div class="tools-right">
+            <label class="sr" for="tx-search">搜尋文字</label>
+            <input id="tx-search" class="field" type="search" placeholder="搜尋文字內容">
+            <button type="button" class="btn btn-solid" id="tx-save">儲存全部修改</button>
+          </div>
+        </div>
+        <p class="saving" id="tx-status" aria-live="polite"></p>
+        <p class="error" id="tx-error" role="alert" hidden></p>
+        <div id="tx-list" class="tx-list"></div>
+      </section>
     </div>
   </main>
 
@@ -143,6 +159,14 @@
         <option value="store">只限門市</option>
         <option value="hidden">隱藏（不在網站顯示）</option>
       </select>
+      <fieldset class="chan-set">
+        <legend>供應方式（可以選多項）</legend>
+        <label class="check"><input type="checkbox" id="p-ch-stock" value="stock"><span>格仔舖現貨<small>門市有貨，售完即止</small></span></label>
+        <label class="check"><input type="checkbox" id="p-ch-preorder" value="preorder"><span>訂購<small>需要向供應商訂購，到貨日期是預計</small></span></label>
+        <label class="check"><input type="checkbox" id="p-ch-sf" value="sf"><span>可寄順豐<small>可以順豐到付寄送；不選的話只可門市自取</small></span></label>
+      </fieldset>
+      <label for="p-eta">預計到貨時間（只用於「訂購」，選填）</label>
+      <input id="p-eta" class="field" type="text" maxlength="60" placeholder="例如 2026 年 11 月中">
       <label for="p-photo">相片（選填，會自動縮細）</label>
       <div class="photo-row">
         <div class="preview" id="p-preview" aria-hidden="true"></div>
@@ -222,6 +246,7 @@
 
   <script src="settings.js"></script>
   <script src="firebase-config.js"></script>
+  <script src="texts.js"></script>
   <script type="module" src="admin.js"></script>
 </body>
 </html>

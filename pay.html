@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>付款 · MHKPOP</title>
+  <title data-t="pay.title">付款 · MHKPOP</title>
   <link rel="icon" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,57 +16,67 @@
   <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="/"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
-      <a class="btn btn-line" href="/">返回網站</a>
+      <a class="btn btn-line" href="/" data-t="pay.back">返回網站</a>
     </div>
   </header>
 
   <main class="wrap pay">
     <section id="missing" hidden>
-      <h1>找不到訂單</h1>
-      <p class="lead">這個頁面需要在落單後開啟。請回到網站填寫落單表格。</p>
-      <p><a class="btn btn-solid" href="/#order">前往落單表格</a></p>
+      <h1 data-t="pay.missing.t">找不到訂單</h1>
+      <p class="lead" data-t="pay.missing.d">這個頁面需要在落單後開啟。請回到網站填寫落單表格。</p>
+      <p><a class="btn btn-solid" href="/#order" data-t="pay.missing.btn">前往落單表格</a></p>
     </section>
 
     <section id="pay" hidden>
       <p class="caps kicker" id="pay-no"></p>
-      <h1>請付款 <span id="pay-amount"></span></h1>
-      <p class="lead">你的訂單已收到。請選擇付款方式，並在付款備註寫上訂單編號。</p>
+      <h1><span data-t="pay.h1">請付款</span> <span id="pay-amount"></span></h1>
+      <p class="lead" data-t="pay.lead">你的訂單已收到。請選擇付款方式，並在付款備註寫上訂單編號。</p>
 
       <div class="ref">
-        <div><small>訂單編號</small><b id="ref-no"></b></div>
-        <button type="button" class="btn btn-line" data-copy="no">複製訂單編號</button>
-        <div><small>付款金額</small><b id="ref-amount"></b></div>
+        <div><small data-t="pay.refNo">訂單編號</small><b id="ref-no"></b></div>
+        <button type="button" class="btn btn-line" data-copy="no" data-t="pay.copyNo">複製訂單編號</button>
+        <div><small data-t="pay.refAmount">付款金額</small><b id="ref-amount"></b></div>
       </div>
 
-      <h2>選擇付款方式</h2>
+      <h2 data-t="pay.choose">選擇付款方式</h2>
       <div class="methods" id="methods" role="group" aria-label="付款方式"></div>
       <div class="panel" id="panel" aria-live="polite"></div>
 
       <p class="note" id="pay-note"></p>
 
       <section class="proof" id="proof" hidden>
-        <h2>已付款？上傳付款截圖</h2>
-        <p class="hint">付款後可上傳付款成功的截圖，方便我們核對收款。上傳不是必須，亦不代表訂單已確認。</p>
-        <label for="proof-file">付款截圖</label>
+        <h2 data-t="pay.proof.h">已付款？上傳付款截圖</h2>
+        <p class="hint" data-t="pay.proof.hint">付款後可上傳付款成功的截圖，方便我們核對收款。上傳不是必須，亦不代表訂單已確認。請在上傳前遮蓋與付款無關的個人資料。</p>
+        <label for="proof-file" data-t="pay.proof.file">付款截圖</label>
         <input id="proof-file" type="file" accept="image/*">
         <div class="proof-preview" id="proof-preview" aria-hidden="true"></div>
-        <label for="proof-note">備註（選填，例如付款時間或參考編號）</label>
+        <label for="proof-note" data-t="pay.proof.note">備註（選填，例如付款時間或參考編號）</label>
         <input id="proof-note" class="field" type="text" maxlength="200">
         <p class="error" id="proof-error" role="alert" hidden></p>
         <button class="btn btn-solid" type="button" id="proof-send">傳送付款截圖</button>
-        <p class="proof-done" id="proof-done" role="status" hidden>已收到付款截圖。我們核對收款後會確認訂單。</p>
+        <p class="proof-done" id="proof-done" role="status" hidden data-t="pay.proof.done">已收到付款截圖。我們核對收款後會確認訂單。</p>
       </section>
       <details class="order-sum" id="order-sum" hidden>
-        <summary>查看訂單內容</summary>
+        <summary data-t="pay.sum">查看訂單內容</summary>
         <div class="summary" id="sum-body"></div>
       </details>
-      <p class="hint">遇到問題？請在 Instagram 私訊 <a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a>（請用文字訊息，並附上訂單編號）。</p>
+      <p class="hint"><span data-t="pay.help.a">遇到問題？請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="pay.help.b">（請用文字訊息，並附上訂單編號）。</span></p>
     </section>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
   <script src="settings.js"></script>
   <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
   <script src="pay.js"></script>
 </body>
 </html>

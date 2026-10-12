@@ -1,12 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, setDoc, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
-const PRODUCT_STATUS = { ok: "有貨", sold: "售罄", store: "只限門市", hidden: "隱藏" };
+const PRODUCT_STATUS = { ok: "有貨", sold: "售罄", store: "只限門市（舊設定）", hidden: "隱藏" };
+const CHANNELS = { stock: "格仔舖現貨", preorder: "訂購", sf: "可寄順豐" };
+const chOf = (p) => { const c = Array.isArray(p.channels) ? p.channels.filter((x) => CHANNELS[x]) : []; return c.length ? c : ["stock", "sf"]; };
 const money = (n) => "HK$" + n;
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const notice = (msg) => { const n = $("#notice"); n.textContent = msg; n.hidden = !msg; };
@@ -16,7 +18,7 @@ if (!cfg) {
   notice("訂單系統尚未設定完成。請完成 Firebase 設定後重新部署網站。");
 } else {
   const app = initializeApp(cfg);
-  const auth = getAuth(app);
+  const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
   const db = getFirestore(app);
   const DEFAULTS = window.SETTINGS || {};
   let orders = [], products = [], payments = [], proofs = [], site = null, filter = "all";
@@ -29,7 +31,7 @@ if (!cfg) {
   // ---------- sign in / out ----------
   const stopAll = () => { unsubs.forEach((u) => u()); unsubs = []; };
   const denied = (err) => {
-    if (err && err.code === "permission-denied") notice("此帳戶沒有權限。請用管理員電郵登入。");
+    if (err && err.code === "permission-denied") { notice("此帳戶沒有管理權限。請登出，再用管理員電郵登入。"); $("#app").hidden = true; }
     else notice("載入資料失敗，請稍後再試。");
   };
 
@@ -52,6 +54,8 @@ if (!cfg) {
       (snap) => { payments = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); }, denied));
     unsubs.push(onSnapshot(doc(db, "settings", "site"),
       (snap) => { site = snap.exists() ? snap.data() : null; if (!siteDirty) fillSite(); }, denied));
+    unsubs.push(onSnapshot(doc(db, "settings", "texts"),
+      (snap) => { textMap = snap.exists() && snap.data().t ? snap.data().t : {}; if (!textsDirty) { edits = {}; renderTexts(); } }, denied));
     fillSite();
   });
 
@@ -80,7 +84,7 @@ if (!cfg) {
   const visibleOrders = () => {
     const q = $("#search").value.trim().toLowerCase();
     return orders.filter((o) => (filter === "all" || (filter === "proof" ? proofsOf(o).length > 0 : o.status === filter)) &&
-      (!q || [o.orderNo, o.name, o.contact, o.address, o.notes].join(" ").toLowerCase().includes(q)));
+      (!q || [o.orderNo, o.name, o.contact, o.email, o.address, o.notes].join(" ").toLowerCase().includes(q)));
   };
 
   $("#filters").addEventListener("click", (e) => {
@@ -98,9 +102,9 @@ if (!cfg) {
   });
   $("#csv").addEventListener("click", () => {
     const q = (s) => '"' + String(s == null ? "" : s).replace(/"/g, '""') + '"';
-    const rows = [["訂單編號", "時間", "狀態", "姓名", "聯絡方式", "交收方式", "地址", "貨品", "總額(HK$)", "備註"]];
-    visibleOrders().forEach((o) => rows.push([o.orderNo, fmt(o), ORDER_STATUS[o.status] || o.status, o.name, o.contact, o.delivery, o.address,
-      (o.items || []).map((i) => i.group + " " + i.name + " x" + i.qty).join("; "), o.total, o.notes]));
+    const rows = [["訂單編號", "時間", "狀態", "姓名", "聯絡方式", "帳戶電郵", "交收方式", "地址", "貨品", "總額(HK$)", "備註"]];
+    visibleOrders().forEach((o) => rows.push([o.orderNo, fmt(o), ORDER_STATUS[o.status] || o.status, o.name, o.contact, o.email, o.delivery, o.address,
+      (o.items || []).map((i) => i.group + " " + i.name + " x" + i.qty + (i.mode && CHANNELS[i.mode] ? " (" + CHANNELS[i.mode] + ")" : "")).join("; "), o.total, o.notes]));
     const blob = new Blob(["﻿" + rows.map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = "mhkpop-orders.csv";
@@ -117,16 +121,18 @@ if (!cfg) {
     const list = visibleOrders();
     $("#empty").hidden = list.length > 0;
     $("#orders").innerHTML = list.map((o) => {
-      const items = (o.items || []).map((i) => "<li><span>" + esc(i.group) + " " + esc(i.name) + " × " + esc(i.qty) + "</span><span>" + money(i.price * i.qty) + "</span></li>").join("");
+      const items = (o.items || []).map((i) => "<li><span>" + esc(i.group) + " " + esc(i.name) + " × " + esc(i.qty) + (i.mode && CHANNELS[i.mode] ? ' <span class="o-mode">· ' + CHANNELS[i.mode] + "</span>" : "") + "</span><span>" + money(i.price * i.qty) + "</span></li>").join("");
+      const sum = (o.items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
+      const warn = sum !== o.total ? '<p class="o-warn">⚠ 總額 ' + money(o.total) + " 與貨品加起來的 " + money(sum) + " 不符，請小心核對，不要確認。</p>" : "";
       const opts = Object.keys(ORDER_STATUS).map((k) => '<option value="' + k + '"' + (o.status === k ? " selected" : "") + ">" + ORDER_STATUS[k] + "</option>").join("");
       return '<article class="order is-' + esc(o.status) + '">' +
         '<div class="o-head"><div><div class="o-no">' + esc(o.orderNo) + '</div><div class="o-time">' + esc(fmt(o)) + "</div></div>" +
         '<div><label class="sr" for="s-' + o.id + '">狀態</label><select class="o-status" id="s-' + o.id + '" data-id="' + o.id + '">' + opts + '</select> <span class="saving" aria-live="polite"></span></div></div>' +
         '<dl class="o-grid"><div><dt>姓名</dt><dd>' + esc(o.name) + "</dd></div><div><dt>聯絡方式</dt><dd>" + esc(o.contact) + "</dd></div>" +
-        "<div><dt>交收方式</dt><dd>" + esc(o.delivery) + "</dd></div>" +
+        (o.email ? "<div><dt>帳戶電郵</dt><dd>" + esc(o.email) + "</dd></div>" : "") + "<div><dt>交收方式</dt><dd>" + esc(o.delivery) + "</dd></div>" +
         (o.address ? "<div><dt>地址</dt><dd>" + esc(o.address) + "</dd></div>" : "") +
         (o.notes ? "<div><dt>備註</dt><dd>" + esc(o.notes) + "</dd></div>" : "") + "</dl>" +
-        '<ul class="o-items">' + items + '</ul><div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" +
+        '<ul class="o-items">' + items + '</ul><div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" + warn +
         proofHtml(o) + "</article>";
     }).join("");
   }
@@ -157,7 +163,8 @@ if (!cfg) {
       return '<article class="prod' + (p.status === "hidden" ? " is-hidden" : "") + '" data-id="' + p.id + '">' +
         '<div class="thumb">' + thumb + "</div>" +
         '<div class="p-main"><div class="p-group">' + esc(p.group) + "</div><div class=\"p-name\">" + esc(p.name) + "</div>" +
-        '<div class="p-meta">' + money(p.price) + (p.tag ? " · " + esc(p.tag) : "") + "</div></div>" +
+        '<div class="p-meta">' + money(p.price) + (p.tag ? " · " + esc(p.tag) : "") + (p.eta && chOf(p).includes("preorder") ? " · 預計到貨：" + esc(p.eta) : "") + "</div>" +
+        '<div class="badges">' + chOf(p).map((c) => '<span class="badge">' + CHANNELS[c] + "</span>").join("") + "</div></div>" +
         '<div class="p-actions">' +
         '<label class="sr" for="ps-' + p.id + '">狀態</label><select class="o-status" id="ps-' + p.id + '" data-act="status">' + opts + "</select>" +
         '<button type="button" class="icon" data-act="up" aria-label="向上移" ' + (i === 0 ? "disabled" : "") + ">▲</button>" +
@@ -189,7 +196,7 @@ if (!cfg) {
     const batch = writeBatch(db);
     list.forEach((p, i) => {
       const st = (p.status || "").indexOf("門市") >= 0 ? "store" : (p.status || "").indexOf("售罄") >= 0 ? "sold" : "ok";
-      batch.set(doc(collection(db, "products")), { group: p.group, name: p.name, price: Number(p.price) || 0, tag: p.tag || "", image: "", status: st, order: i + 1 });
+      batch.set(doc(collection(db, "products")), { group: p.group, name: p.name, price: Number(p.price) || 0, tag: p.tag || "", image: "", status: st, order: i + 1, channels: Array.isArray(p.channels) ? p.channels : (st === "store" ? ["stock"] : ["stock", "sf"]), eta: "" });
     });
     batch.commit().catch(() => notice("匯入失敗，請確認已發布最新的安全規則。"));
   });
@@ -208,6 +215,9 @@ if (!cfg) {
     $("#p-group").value = p ? p.group : ""; $("#p-name").value = p ? p.name : "";
     $("#p-price").value = p ? p.price : ""; $("#p-tag").value = p ? p.tag || "" : "";
     $("#p-status").value = p ? p.status || "ok" : "ok";
+    const ch = p ? chOf(p) : ["stock", "sf"];
+    Object.keys(CHANNELS).forEach((k) => { $("#p-ch-" + k).checked = ch.includes(k); });
+    $("#p-eta").value = p ? p.eta || "" : "";
     $("#p-photo").value = ""; setPhoto(p ? p.image : "");
     $("#p-error").hidden = true; $("#p-delete").hidden = !p; $("#p-confirm").hidden = true;
     dlg.showModal();
@@ -243,8 +253,10 @@ if (!cfg) {
     const group = $("#p-group").value.trim(), name = $("#p-name").value.trim(), price = parseFloat($("#p-price").value);
     if (!group || !name) { err.textContent = "請填寫組合和專輯名稱。"; err.hidden = false; return; }
     if (isNaN(price) || price < 0) { err.textContent = "請填寫正確的價錢（只填數字）。"; err.hidden = false; return; }
+    const channels = Object.keys(CHANNELS).filter((k) => $("#p-ch-" + k).checked);
+    if (!channels.length) { err.textContent = "請最少選擇一種供應方式（格仔舖現貨、訂購或可寄順豐）。"; err.hidden = false; return; }
     err.hidden = true; btn.disabled = true; btn.textContent = "儲存中…";
-    const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value };
+    const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value, channels, eta: $("#p-eta").value.trim() };
     const job = editing
       ? updateDoc(doc(db, "products", editing.id), data)
       : addDoc(collection(db, "products"), { ...data, order: products.reduce((m, p) => Math.max(m, p.order || 0), 0) + 1 });
@@ -359,6 +371,93 @@ if (!cfg) {
     deleteDoc(doc(db, "payments", editingPay.id)).then(() => pmdlg.close())
       .catch(() => { $("#pm-error").textContent = "刪除失敗，請再試。"; $("#pm-error").hidden = false; });
   });
+
+  // ---------- every word on the website ----------
+  const GROUPS = [
+    ["nav", "頂部及選單"], ["hero", "首頁主視覺"], ["shelf", "價目區"], ["chan", "供應方式標籤"], ["how", "購買流程"], ["info", "購買須知"],
+    ["ord", "落單區"], ["gate", "登入提示"], ["form", "落單表格"], ["item", "貨品選擇"], ["delivery", "交收方式"], ["err", "落單提示訊息"],
+    ["review", "核對訂單視窗"], ["acct", "帳戶（登入／註冊）"], ["store", "門市"], ["faq", "常見問題"], ["foot", "頁尾"], ["legal", "條款連結"],
+    ["pay", "付款頁面"], ["terms", "服務條款頁面"], ["priv", "私隱政策頁面"], ["idx", "瀏覽器標題"]
+  ];
+  let catalog = [], textMap = {}, edits = {}, textsDirty = false, catalogReady = false;
+
+  async function loadCatalog() {
+    const pages = ["index.html", "pay.html", "terms.html", "privacy.html"];
+    const items = new Map();
+    for (const file of pages) {
+      try {
+        const res = await fetch(file, { cache: "no-store" });
+        if (!res.ok) continue;
+        const dom = new DOMParser().parseFromString(await res.text(), "text/html");
+        dom.querySelectorAll("[data-t]").forEach((el) => {
+          const k = el.getAttribute("data-t");
+          if (!items.has(k)) items.set(k, { key: k, def: el.textContent.replace(/\s+/g, " ").trim() });
+        });
+      } catch (e) { /* skip this page */ }
+    }
+    Object.entries(window.MHT.DEFAULTS).forEach(([k, v]) => { if (!items.has(k)) items.set(k, { key: k, def: v }); });
+    (DEFAULTS.delivery || []).forEach((d, i) => {
+      items.set("delivery." + i + ".name", { key: "delivery." + i + ".name", def: d.name });
+      if (d.note) items.set("delivery." + i + ".note", { key: "delivery." + i + ".note", def: d.note });
+    });
+    catalog = [...items.values()];
+    catalogReady = true;
+    renderTexts();
+  }
+
+  const curText = (it) => (edits[it.key] !== undefined ? edits[it.key] : (textMap[it.key] !== undefined && textMap[it.key] !== "" ? textMap[it.key] : it.def));
+  const prefix = (k) => k.split(".")[0];
+
+  function renderTexts() {
+    const list = $("#tx-list");
+    if (!catalogReady) { list.innerHTML = '<p class="empty">正在載入文字…</p>'; return; }
+    const q = $("#tx-search").value.trim().toLowerCase();
+    const known = new Set(GROUPS.map((g) => g[0]));
+    const groups = GROUPS.concat([["_other", "其他"]]);
+    let html = "";
+    groups.forEach(([gk, gname]) => {
+      const rows = catalog.filter((it) => (gk === "_other" ? !known.has(prefix(it.key)) : prefix(it.key) === gk) &&
+        (!q || (it.def + " " + curText(it) + " " + it.key).toLowerCase().includes(q)));
+      if (!rows.length) return;
+      html += "<details" + (q ? " open" : "") + "><summary>" + esc(gname) + "（" + rows.length + "）</summary>" + rows.map((it, n) => {
+        const v = curText(it), changed = v !== it.def;
+        const id = "tx-" + gk + "-" + n, h = Math.min(10, Math.max(1, Math.ceil(v.length / 38)));
+        const head = it.def.length > 36 ? it.def.slice(0, 36) + "…" : it.def;
+        return '<div class="tx" data-k="' + esc(it.key) + '"><label for="' + id + '">' + esc(head) + "<small>" + esc(it.key) + '</small><span class="tx-changed">' + (changed ? "已修改" : "") + "</span></label>" +
+          '<div class="tx-row"><textarea id="' + id + '" class="field" rows="' + h + '" maxlength="5000">' + esc(v) + "</textarea>" +
+          '<button type="button" class="btn btn-line" data-reset="' + esc(it.key) + '"' + (changed ? "" : " disabled") + ">還原</button></div></div>";
+      }).join("") + "</details>";
+    });
+    list.innerHTML = html || '<p class="empty">找不到相符的文字。</p>';
+  }
+
+  $("#tx-list").addEventListener("input", (e) => {
+    const ta = e.target.closest("textarea"); const row = e.target.closest(".tx"); if (!ta || !row) return;
+    const it = catalog.find((x) => x.key === row.dataset.k); if (!it) return;
+    edits[it.key] = ta.value; textsDirty = true; $("#tx-status").textContent = "有未儲存的修改。";
+    const changed = ta.value.trim() !== it.def;
+    row.querySelector(".tx-changed").textContent = changed ? "已修改" : "";
+    row.querySelector("[data-reset]").disabled = !changed;
+  });
+  $("#tx-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-reset]"); if (!b) return;
+    const it = catalog.find((x) => x.key === b.dataset.reset); if (!it) return;
+    edits[it.key] = it.def; textsDirty = true; $("#tx-status").textContent = "有未儲存的修改。";
+    renderTexts();
+  });
+  $("#tx-search").addEventListener("input", renderTexts);
+  $("#tx-save").addEventListener("click", () => {
+    const err = $("#tx-error"), st = $("#tx-status"), btn = $("#tx-save");
+    const t = {};
+    catalog.forEach((it) => { const v = curText(it).trim(); if (v && v !== it.def) t[it.key] = v; });
+    if (Object.keys(t).length > 700) { err.textContent = "修改的項目太多（上限 700 項）。"; err.hidden = false; return; }
+    err.hidden = true; btn.disabled = true; st.textContent = "儲存中…";
+    setDoc(doc(db, "settings", "texts"), { t })
+      .then(() => { textsDirty = false; edits = {}; textMap = t; st.textContent = "已儲存。網站已更新。"; renderTexts(); })
+      .catch(() => { st.textContent = ""; err.textContent = "儲存失敗。請確認已發布最新的安全規則，或稍後再試。"; err.hidden = false; })
+      .finally(() => { btn.disabled = false; });
+  });
+  loadCatalog();
 
   // ---------- website text ----------
   const TEXT = ["headline", "intro", "shelfNote", "hours", "addressShort", "enquiryNote", "claims", "instagram", "paymentNote"];

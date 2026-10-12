@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MHKPOP 韓國 K-POP 專輯專賣店</title>
+  <title data-t="idx.title">MHKPOP 韓國 K-POP 專輯專賣店</title>
   <meta name="description" content="將軍澳韓國 K-POP 專輯專賣店。專輯價錢低至市價 3 折，填寫網上表格落單，可選順豐到付或門市自取。">
   <link rel="icon" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,35 +15,38 @@
   <div class="topbar caps">
     <span data-s="addressShort"></span>
     <span data-s="hours"></span>
-    <span>售完即止 · 不設預留</span>
+    <span data-t="nav.sold">售完即止 · 不設預留</span>
   </div>
 
   <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="#top"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
       <nav class="nav-links">
-        <a href="#shelf">價目</a>
-        <a href="#how">購買流程</a>
-        <a href="#info">購買須知</a>
-        <a href="#store">門市</a>
-        <a href="#faq">問題</a>
+        <a href="#shelf" data-t="nav.shelf">價目</a>
+        <a href="#how" data-t="nav.how">購買流程</a>
+        <a href="#info" data-t="nav.info">購買須知</a>
+        <a href="#store" data-t="nav.store">門市</a>
+        <a href="#faq" data-t="nav.faq">問題</a>
       </nav>
-      <a class="btn btn-solid" href="#order">落單表格</a>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button>
+        <a class="btn btn-solid" href="#order" data-t="nav.order">落單表格</a>
+      </div>
     </div>
   </header>
 
   <main id="top">
     <section class="hero wrap">
       <div class="hero-copy">
-        <p class="caps kicker">韓國 K-POP 專輯專賣店 · 將軍澳</p>
+        <p class="caps kicker" data-t="hero.kicker">韓國 K-POP 專輯專賣店 · 將軍澳</p>
         <h1 aria-label="MHKPOP">
           <span class="mask" aria-hidden="true"><span class="ltr" style="--d:0ms">M</span></span><span class="mask" aria-hidden="true"><span class="ltr" style="--d:90ms">H</span></span><span class="mask" aria-hidden="true"><span class="ltr" style="--d:180ms">K</span></span><span class="mask" aria-hidden="true"><span class="ltr" style="--d:270ms">P</span></span><span class="mask" aria-hidden="true"><span class="ltr" style="--d:360ms">O</span></span><span class="mask" aria-hidden="true"><span class="ltr" style="--d:450ms">P</span></span>
         </h1>
         <p class="headline" data-s="headline"></p>
         <p class="lead" data-s="intro"></p>
         <div class="row">
-          <a class="btn btn-solid btn-lg" href="#shelf">睇價目</a>
-          <a class="btn btn-line btn-lg" href="#order">填寫落單表格</a>
+          <a class="btn btn-solid btn-lg" href="#shelf" data-t="hero.cta1">睇價目</a>
+          <a class="btn btn-line btn-lg" href="#order" data-t="hero.cta2">填寫落單表格</a>
         </div>
       </div>
       <div class="hero-art">
@@ -51,9 +54,9 @@
         <div class="badge" aria-hidden="true">
           <svg class="badge-spin" viewBox="0 0 120 120" width="100%" height="100%" aria-hidden="true">
             <defs><path id="ring" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
-            <text font-family="Jost, sans-serif" font-size="11" font-weight="500" letter-spacing="3.2" fill="#122521"><textPath href="#ring">SELL OUT · 售完即止 · ALBUMS · 專輯 ·</textPath></text>
+            <text font-family="Jost, sans-serif" font-size="11" font-weight="500" letter-spacing="3.2" fill="#122521"><textPath href="#ring" data-t="hero.ring">SELL OUT · 售完即止 · ALBUMS · 專輯 ·</textPath></text>
           </svg>
-          <span class="badge-num">3折</span>
+          <span class="badge-num" data-t="hero.badge">3折</span>
         </div>
       </div>
     </section>
@@ -63,85 +66,94 @@
     <section id="shelf" class="section wrap">
       <div class="section-head reveal">
         <div>
-          <p class="caps kicker">暑期限定優惠</p>
-          <h2>熱門專輯價目</h2>
+          <p class="caps kicker" data-t="shelf.kicker">暑期限定優惠</p>
+          <h2 data-t="shelf.title">熱門專輯價目</h2>
         </div>
         <div class="chips" id="chips" role="group" aria-label="按組合篩選"></div>
       </div>
-      <p class="loading" id="loading">正在載入價目…</p>
+      <p class="loading" id="loading" data-t="shelf.loading">正在載入價目…</p>
       <div class="grid" id="grid"></div>
       <p class="note" data-s="shelfNote"></p>
     </section>
 
     <section id="how" class="band">
       <div class="wrap section">
-        <h2 class="reveal">購買流程</h2>
+        <h2 class="reveal" data-t="how.title">購買流程</h2>
         <div class="steps">
-          <div class="step reveal"><div class="outline">1</div><h3>睇價目</h3><p>在價目表睇清楚想買的專輯和價錢。</p></div>
-          <div class="step reveal"><div class="outline">2</div><h3>填寫落單表格</h3><p>留低姓名、聯絡方式和交收方式，揀選貨品後提交。</p></div>
-          <div class="step reveal"><div class="outline">3</div><h3>等我們聯絡</h3><p>我們會確認貨量，並告知付款方法和交收安排。</p></div>
+          <div class="step reveal"><div class="outline">1</div><h3 data-t="how.1.t">睇價目</h3><p data-t="how.1.d">在價目表睇清楚想買的專輯和價錢。</p></div>
+          <div class="step reveal"><div class="outline">2</div><h3 data-t="how.2.t">登入並填寫落單表格</h3><p data-t="how.2.d">註冊或登入帳戶，留低姓名、聯絡方式和交收方式，揀選貨品後提交。</p></div>
+          <div class="step reveal"><div class="outline">3</div><h3 data-t="how.3.t">付款及等我們確認</h3><p data-t="how.3.d">確認訂單後會開啟付款頁面。我們收到款項並確認貨量後，會聯絡你交收安排。</p></div>
         </div>
       </div>
     </section>
 
     <section id="info" class="section wrap">
-      <h2 class="reveal">購買須知</h2>
+      <h2 class="reveal" data-t="info.title">購買須知</h2>
       <div class="info-grid">
-        <div class="reveal"><h3 class="caps">順豐到付</h3><p>運費由你在收件時付給順豐，網上不收運費。大量購買亦可接受順豐到付。</p></div>
-        <div class="reveal"><h3 class="caps">門市自取</h3><p>將軍澳 TKO Gateway 東翼一樓 E171 號舖，別樹一格 A24 &amp; B24 格位。營業時間：<span data-s="hours"></span>。</p></div>
-        <div class="reveal"><h3 class="caps">落單規則</h3><p>售完即止，不設預留。查詢請用文字訊息，並表示有意購買 xx。本店不接受語音訊息。</p></div>
+        <div class="reveal"><h3 class="caps" data-t="info.sf.t">順豐到付</h3><p data-t="info.sf.d">運費由你在收件時付給順豐，網上不收運費。大量購買亦可接受順豐到付。只有標明「可寄順豐」的貨品才可以寄順豐。</p></div>
+        <div class="reveal"><h3 class="caps" data-t="info.pickup.t">門市自取</h3><p><span data-t="info.pickup.d">將軍澳 TKO Gateway 東翼一樓 E171 號舖，別樹一格 A24 &amp; B24 格位。營業時間：</span><span data-s="hours"></span><span data-t="info.pickup.e">。</span></p></div>
+        <div class="reveal"><h3 class="caps" data-t="info.rules.t">落單規則</h3><p data-t="info.rules.d">售完即止，不設預留。查詢請用文字訊息，並表示有意購買 xx。本店不接受語音訊息。</p></div>
       </div>
     </section>
 
     <section id="order" class="band">
       <div class="wrap section order-wrap">
         <div class="order-intro reveal">
-          <p class="caps kicker">只接受表格落單</p>
-          <h2>落單表格</h2>
-          <p class="lead">本店只接受透過這張表格落單。提交後我們會用你留下的聯絡方式確認貨量，並告知付款方法。</p>
+          <p class="caps kicker" data-t="ord.kicker">只接受表格落單</p>
+          <h2 data-t="ord.title">落單表格</h2>
+          <p class="lead" data-t="ord.lead">本店只接受透過這張表格落單。落單前需要登入帳戶。提交後會開啟付款頁面，我們收到款項並確認貨量後會用你留下的聯絡方式聯絡你。</p>
           <ul class="list">
-            <li>售完即止，不設預留</li>
-            <li>請留下 Instagram 帳號或電話</li>
-            <li>順豐到付，運費在收件時付給順豐</li>
+            <li data-t="ord.li1">售完即止，不設預留</li>
+            <li data-t="ord.li2">請留下 Instagram 帳號或電話</li>
+            <li data-t="ord.li3">順豐到付，運費在收件時付給順豐</li>
           </ul>
         </div>
 
         <div class="order-card">
-          <p class="closed" id="closed" hidden>網上落單暫時未開放。請在 Instagram 私訊 <a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a>，並表示有意購買 xx（請用文字訊息）。</p>
+          <p class="closed" id="closed" hidden><span data-t="ord.closed.a">網上落單暫時未開放。請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="ord.closed.b">，並表示有意購買 xx（請用文字訊息）。</span></p>
+
+          <div class="gate" id="gate" hidden>
+            <h3 data-t="gate.title">請先登入才可落單</h3>
+            <p data-t="gate.text">為保障雙方，落單前需要註冊並登入帳戶。註冊免費，只需要電郵和密碼。</p>
+            <button type="button" class="btn btn-solid btn-lg" id="gate-btn" data-t="gate.btn">登入 / 註冊</button>
+          </div>
 
           <form id="order-form" novalidate>
+            <p class="whoami"><span data-t="form.account">登入帳戶：</span><b id="whoami"></b> <button type="button" class="link" id="form-signout" data-t="form.signout">登出</button></p>
             <div class="two">
-              <div><label for="f-name">姓名</label><input id="f-name" name="name" class="field" type="text" autocomplete="name"></div>
-              <div><label for="f-contact">Instagram 或電話</label><input id="f-contact" name="contact" class="field" type="text" autocomplete="tel"></div>
+              <div><label for="f-name" data-t="form.name">姓名</label><input id="f-name" name="name" class="field" type="text" autocomplete="name" maxlength="100"></div>
+              <div><label for="f-contact" data-t="form.contact">Instagram 或電話</label><input id="f-contact" name="contact" class="field" type="text" autocomplete="tel" maxlength="100"></div>
             </div>
 
             <fieldset>
-              <legend>揀選貨品</legend>
+              <legend data-t="form.items">揀選貨品</legend>
               <div class="items" id="items"></div>
-              <div class="total-row"><span>貨品總額（未計運費）</span><b id="total">HK$0</b></div>
+              <div class="total-row"><span data-t="form.total">貨品總額（未計運費）</span><b id="total">HK$0</b></div>
             </fieldset>
 
             <fieldset>
-              <legend>交收方式</legend>
+              <legend data-t="form.delivery">交收方式</legend>
               <div class="pills" id="delivery"></div>
               <p class="hint" id="delivery-note"></p>
             </fieldset>
 
             <div id="address-wrap">
-              <label for="f-address">收件地址</label>
-              <textarea id="f-address" name="address" class="field" rows="3" autocomplete="street-address"></textarea>
+              <label for="f-address" data-t="form.address">收件地址</label>
+              <textarea id="f-address" name="address" class="field" rows="3" autocomplete="street-address" maxlength="500"></textarea>
             </div>
 
             <div>
-              <label for="f-notes">備註（選填）</label>
-              <textarea id="f-notes" name="notes" class="field" rows="2"></textarea>
+              <label for="f-notes" data-t="form.notes">備註（選填）</label>
+              <textarea id="f-notes" name="notes" class="field" rows="2" maxlength="1000"></textarea>
             </div>
 
             <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="_gotcha" type="text" tabindex="-1" autocomplete="off"></div>
 
+            <label class="check"><input id="f-agree" type="checkbox"><span><span data-t="form.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="form.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="form.agree.c">，並確認以上資料正確。</span></span></label>
+
             <p class="error" id="error" role="alert" hidden></p>
-            <button class="btn btn-solid btn-lg" type="submit" id="submit">核對訂單</button>
-            <p class="hint">按「核對訂單」確認內容後，會開啟付款頁面。查詢請用文字訊息，本店不接受語音訊息。</p>
+            <button class="btn btn-solid btn-lg" type="submit" id="submit" data-t="form.submit">核對訂單</button>
+            <p class="hint" data-t="form.hint">按「核對訂單」確認內容後，會開啟付款頁面。查詢請用文字訊息，本店不接受語音訊息。</p>
           </form>
 
         </div>
@@ -151,13 +163,13 @@
     <section id="store" class="dark">
       <div class="wrap section store-wrap">
         <div>
-          <p class="caps kicker">門市</p>
+          <p class="caps kicker" data-t="store.kicker">門市</p>
           <h2 id="stall"></h2>
           <p class="addr" id="address"></p>
           <dl class="facts">
-            <div><dt class="caps">營業時間</dt><dd data-s="hours"></dd></div>
-            <div><dt class="caps">Instagram</dt><dd><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a></dd></div>
-            <div><dt class="caps">查詢須知</dt><dd data-s="enquiryNote"></dd></div>
+            <div><dt class="caps" data-t="store.hours">營業時間</dt><dd data-s="hours"></dd></div>
+            <div><dt class="caps" data-t="store.ig">Instagram</dt><dd><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a></dd></div>
+            <div><dt class="caps" data-t="store.enq">查詢須知</dt><dd data-s="enquiryNote"></dd></div>
           </dl>
           <p class="claims" data-s="claims"></p>
         </div>
@@ -166,12 +178,13 @@
     </section>
 
     <section id="faq" class="section wrap">
-      <h2 class="reveal">常見問題</h2>
+      <h2 class="reveal" data-t="faq.title">常見問題</h2>
       <div class="faq">
-        <details><summary>點樣落單？</summary><p>請填寫網頁上的落單表格。本店只接受透過表格落單。</p></details>
-        <details><summary>可以預留貨品嗎？</summary><p>不可以。本店售完即止，不設預留。</p></details>
-        <details><summary>運費點計？</summary><p>選順豐到付，運費由你在收件時付給順豐，大量購買亦可。到將軍澳門市自取則不用運費。</p></details>
-        <details><summary>點樣查詢？</summary><p>請在 Instagram 私訊 <a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a>，並表示有意購買 xx。本店不接受語音訊息。</p></details>
+        <details><summary data-t="faq.1.q">點樣落單？</summary><p data-t="faq.1.a">請先註冊並登入帳戶，再填寫網頁上的落單表格。本店只接受透過表格落單。</p></details>
+        <details><summary data-t="faq.2.q">可以預留貨品嗎？</summary><p data-t="faq.2.a">不可以。本店售完即止，不設預留。</p></details>
+        <details><summary data-t="faq.3.q">運費點計？</summary><p data-t="faq.3.a">選順豐到付，運費由你在收件時付給順豐，大量購買亦可。到將軍澳門市自取則不用運費。</p></details>
+        <details><summary data-t="faq.4.q">點樣查詢？</summary><p><span data-t="faq.4.a">請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="faq.4.b">，並表示有意購買 xx。本店不接受語音訊息。</span></p></details>
+        <details><summary data-t="faq.5.q">「格仔舖現貨」、「訂購」和「可寄順豐」有咩分別？</summary><p data-t="faq.5.a">格仔舖現貨：貨品已在門市，售完即止。訂購：需要向供應商訂購，到貨日期是預計。可寄順豐：該貨品可以順豐到付寄送；沒有這個標示的貨品只可到門市自取。</p></details>
       </div>
     </section>
   </main>
@@ -179,25 +192,58 @@
   <footer class="footer">
     <div class="wrap footer-in">
       <span class="brand"><img src="assets/logo.png" alt="" width="40" height="39"><span class="caps">MHKPOP</span></span>
-      <span>韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
     </div>
   </footer>
 
   <dialog class="review" id="review" aria-labelledby="review-title">
-    <h3 id="review-title">請核對訂單</h3>
+    <h3 id="review-title" data-t="review.title">請核對訂單</h3>
     <div class="summary" id="review-summary"></div>
     <dl class="review-info" id="review-info"></dl>
     <p class="error" id="review-error" role="alert" hidden></p>
     <div class="review-actions">
-      <button class="btn btn-line" type="button" id="review-back">返回修改</button>
+      <button class="btn btn-line" type="button" id="review-back" data-t="review.back">返回修改</button>
       <button class="btn btn-solid" type="button" id="review-ok">確認訂單，前往付款</button>
     </div>
-    <p class="hint">確認後訂單會送出，並開啟付款頁面。</p>
+    <p class="hint" data-t="review.hint">確認後訂單會送出，並開啟付款頁面。</p>
+  </dialog>
+
+  <dialog class="review acct" id="acct" aria-labelledby="acct-title">
+    <h3 id="acct-title">登入帳戶</h3>
+    <div id="acct-out">
+      <div class="tabs2" role="tablist">
+        <button type="button" role="tab" id="acct-tab-in" aria-selected="true" data-t="acct.tab.in">登入</button>
+        <button type="button" role="tab" id="acct-tab-up" aria-selected="false" data-t="acct.tab.up">註冊</button>
+      </div>
+      <form id="acct-form" novalidate>
+        <div id="acct-name-wrap" hidden><label for="a-name" data-t="acct.name">姓名</label><input id="a-name" class="field" type="text" autocomplete="name" maxlength="60"></div>
+        <label for="a-email" data-t="acct.email">電郵地址</label>
+        <input id="a-email" class="field" type="email" autocomplete="email" maxlength="120">
+        <label for="a-pw" data-t="acct.pw">密碼</label>
+        <input id="a-pw" class="field" type="password" autocomplete="current-password" maxlength="100">
+        <p class="hint" id="acct-pw-hint" hidden data-t="acct.pw.hint">密碼至少 8 個字元。</p>
+        <label class="check" id="acct-agree-wrap" hidden><input id="a-agree" type="checkbox"><span><span data-t="acct.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="acct.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="acct.agree.c">。</span></span></label>
+        <p class="error" id="acct-error" role="alert" hidden></p>
+        <p class="hint" id="acct-info" role="status" hidden></p>
+        <button class="btn btn-solid" type="submit" id="acct-submit">登入</button>
+        <button type="button" class="link" id="acct-forgot" data-t="acct.forgot">忘記密碼？</button>
+      </form>
+    </div>
+    <div id="acct-in" hidden>
+      <p><span data-t="acct.me">已登入：</span> <b id="acct-me"></b></p>
+      <p class="hint" id="acct-verify" hidden data-t="acct.verify">請到你的電郵信箱（包括垃圾郵件）按驗證連結，完成電郵驗證。</p>
+      <button type="button" class="btn btn-line" id="acct-signout" data-t="acct.signout">登出</button>
+    </div>
+    <div class="review-actions"><button type="button" class="btn btn-line" id="acct-close" data-t="acct.close">關閉</button></div>
   </dialog>
 
   <noscript><p style="padding:16px;text-align:center">請開啟 JavaScript 以查看價目和使用落單表格。</p></noscript>
   <script src="settings.js"></script>
   <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="account.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

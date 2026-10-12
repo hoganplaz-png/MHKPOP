@@ -9,6 +9,7 @@
     });
   };
   var money = function (n) { return "HK$" + n; };
+  var T = function (k, vars) { return window.MHT.t(k, undefined, vars); };
 
   // sleeve tones taken from the logo
   var TONES = [
@@ -28,17 +29,7 @@
   bindSettings();
 
   // ---------- content edited on the admin page (Firebase) ----------
-  var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
-  var dbPromise = null;
-  function getDb() {
-    if (!window.FIREBASE_CONFIG) return Promise.resolve(null);
-    if (!dbPromise) {
-      dbPromise = Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
-        return { fs: m[1], db: m[1].getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG)) };
-      });
-    }
-    return dbPromise;
-  }
+  var getDb = function () { return window.MHFB.load(); };
   var SITE_KEYS = ["headline", "intro", "shelfNote", "hours", "addressShort", "addressLines", "stall", "enquiryNote", "claims", "instagram", "ordersOpen"];
   function loadRemote() {
     var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 7000); });
@@ -100,7 +91,7 @@
 
   var products = [];
   var qty = {};
-  var activeGroup = "全部";
+  var activeGroup = "";
 
   function kindOf(p) {
     var s = (p.status || "").toLowerCase();
@@ -108,6 +99,19 @@
     if (s.indexOf("售罄") >= 0 || s.indexOf("sold") >= 0) return "sold";
     if (s.indexOf("門市") >= 0 || s.indexOf("store") >= 0) return "store";
     return "ok";
+  }
+  // How a product can be bought: stock = 格仔舖現貨, preorder = 訂購, sf = 順豐. Older products without a setting get stock + sf.
+  var CH = ["stock", "preorder", "sf"];
+  function chOf(p) {
+    var c = Array.isArray(p.channels) ? p.channels.filter(function (x) { return CH.indexOf(x) >= 0; }) : [];
+    return c.length ? c : ["stock", "sf"];
+  }
+  function hasSource(p) { var c = chOf(p); return c.indexOf("stock") >= 0 || c.indexOf("preorder") >= 0; }
+  function defMode(p) { var c = chOf(p); return c.indexOf("stock") >= 0 ? "stock" : c.indexOf("preorder") >= 0 ? "preorder" : "sf"; }
+  function chanBadges(p) {
+    var h = chOf(p).map(function (c) { return '<span class="chan chan-' + c + '">' + esc(T("chan." + c)) + "</span>"; }).join("");
+    if (chOf(p).indexOf("preorder") >= 0 && p.eta) h += '<span class="eta">' + esc(T("chan.eta", { eta: p.eta })) + "</span>";
+    return '<div class="chans">' + h + "</div>";
   }
   function imgSrc(v) { return /^(https?:)?\/\//.test(v) || v.charAt(0) === "/" || /^data:image\/(jpeg|png|webp);base64,/.test(v) ? v : "images/" + v; }
 
@@ -122,32 +126,32 @@
 
   // ---------- price list ----------
   function renderChips() {
-    var groups = ["全部"];
+    var groups = [];
     products.forEach(function (p) { if (groups.indexOf(p.group) < 0) groups.push(p.group); });
-    $("#chips").innerHTML = groups.map(function (g) {
-      return '<button type="button" class="chip" aria-pressed="' + (g === activeGroup) + '" data-g="' + esc(g) + '">' + esc(g) + "</button>";
-    }).join("");
-    var names = groups.slice(1);
-    var run = names.map(function (n) { return '<span class="caps">' + esc(n) + " <i>·</i></span>"; }).join("");
+    var chip = function (value, text) {
+      return '<button type="button" class="chip" aria-pressed="' + (value === activeGroup) + '" data-g="' + esc(value) + '">' + esc(text) + "</button>";
+    };
+    $("#chips").innerHTML = chip("", T("shelf.all")) + groups.map(function (g) { return chip(g, g); }).join("");
+    var run = groups.map(function (n) { return '<span class="caps">' + esc(n) + " <i>·</i></span>"; }).join("");
     $("#marquee").innerHTML = run + run + run + run;
   }
 
   function renderCards() {
     $("#grid").innerHTML = products.map(function (p, i) {
-      if (activeGroup !== "全部" && p.group !== activeGroup) return "";
+      if (activeGroup && p.group !== activeGroup) return "";
       var k = kindOf(p), tone = TONES[i % TONES.length];
       var sleeve = p.image
         ? '<img src="' + esc(imgSrc(p.image)) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">'
         : '<div class="sleeve-ph"><span class="caps">MHKPOP</span><b>' + esc(p.group) + "</b></div>";
-      var tag = k === "sold" ? "售罄" : p.tag;
-      var foot = k === "sold" ? '<span class="state">已售罄</span>'
-        : k === "store" ? '<span class="state">只限門市購買</span>'
-        : '<a href="#order">我要訂購 →</a>';
+      var tag = k === "sold" ? T("shelf.soldTag") : p.tag;
+      var foot = k === "sold" ? '<span class="state">' + esc(T("shelf.soldFoot")) + "</span>"
+        : k === "store" ? '<span class="state">' + esc(T("shelf.storeFoot")) + "</span>"
+        : '<a href="#order">' + esc(T("shelf.orderLink")) + "</a>";
       return '<article class="card reveal' + (k === "sold" ? " is-sold" : "") + '">' +
         '<div class="stage"><div class="cd"></div>' +
         '<div class="sleeve" style="background:' + tone[0] + ";color:" + tone[1] + '">' + sleeve + "</div>" +
         (tag ? '<span class="tag">' + esc(tag) + "</span>" : "") + "</div>" +
-        '<div class="card-body"><div class="card-group caps">' + esc(p.group) + '</div><div class="card-name">' + esc(p.name) + "</div></div>" +
+        '<div class="card-body"><div class="card-group caps">' + esc(p.group) + '</div><div class="card-name">' + esc(p.name) + "</div>" + chanBadges(p) + "</div>" +
         '<div class="card-foot"><span class="price">' + money(p.price) + "</span>" + foot + "</div></article>";
     }).join("");
   }
@@ -160,19 +164,27 @@
   // ---------- order form ----------
   var form = $("#order-form"), errorEl = $("#error");
   var delivery = S.delivery || [];
+  var modes = {};          // product index -> "stock" | "preorder" | "sf" (what the customer picked)
+  var pickedDelivery = 0;
 
   function renderItems() {
     $("#items").innerHTML = products.map(function (p, i) {
-      var k = kindOf(p), off = k !== "ok";
+      var k = kindOf(p), off = k !== "ok", c = chOf(p);
       var control = off
-        ? '<span class="item-state">' + (k === "sold" ? "已售罄" : "只限門市購買") + "</span>"
-        : '<div class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="減少 ' + esc(p.name) + '">−</button>' +
+        ? '<span class="item-state">' + esc(k === "sold" ? T("shelf.soldFoot") : T("shelf.storeFoot")) + "</span>"
+        : '<div class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="' + esc(T("item.dec", { name: p.name })) + '">−</button>' +
           '<output id="q' + i + '" aria-live="polite">0</output>' +
-          '<button type="button" data-i="' + i + '" data-d="1" aria-label="增加 ' + esc(p.name) + '">+</button></div>';
-      return '<div class="item' + (off ? " is-off" : "") + '"><div class="item-main"><span class="caps">' + esc(p.group) + "</span><small>" + esc(p.name) + "</small></div>" +
+          '<button type="button" data-i="' + i + '" data-d="1" aria-label="' + esc(T("item.inc", { name: p.name })) + '">+</button></div>';
+      var modeSel = !off && c.indexOf("stock") >= 0 && c.indexOf("preorder") >= 0
+        ? '<select class="mode" data-m="' + i + '" aria-label="' + esc(T("item.mode", { name: p.name })) + '">' +
+          '<option value="stock">' + esc(T("item.modeStock")) + '</option><option value="preorder">' + esc(T("item.modePreorder")) + "</option></select>" : "";
+      var line = c.map(function (x) { return T("chan." + x); }).join(" · ");
+      if (c.indexOf("preorder") >= 0 && p.eta) line += " · " + T("chan.eta", { eta: p.eta });
+      return '<div class="item' + (off ? " is-off" : "") + '"><div class="item-main"><span class="caps">' + esc(p.group) + "</span><small>" + esc(p.name) + "</small>" +
+        '<small class="chan-line">' + esc(line) + "</small>" + modeSel + "</div>" +
         '<div class="item-price">' + money(p.price) + "</div>" + control + "</div>";
     }).join("");
-    qty = {}; updateTotal();
+    qty = {}; modes = {}; updateTotal(); syncDelivery();
   }
 
   $("#items").addEventListener("click", function (e) {
@@ -180,67 +192,90 @@
     var i = +b.dataset.i;
     qty[i] = Math.max(0, (qty[i] || 0) + +b.dataset.d);
     $("#q" + i).textContent = qty[i];
-    errorEl.hidden = true; updateTotal();
+    errorEl.hidden = true; updateTotal(); syncDelivery();
+  });
+  $("#items").addEventListener("change", function (e) {
+    var sel = e.target.closest("select[data-m]"); if (!sel) return;
+    modes[+sel.dataset.m] = sel.value;
   });
 
-  function chosen() { return products.map(function (p, i) { return { p: p, q: qty[i] || 0 }; }).filter(function (x) { return x.q > 0; }); }
+  function chosen() {
+    return products.map(function (p, i) { return { p: p, q: qty[i] || 0, mode: modes[i] || defMode(p) }; }).filter(function (x) { return x.q > 0; });
+  }
   function updateTotal() { $("#total").textContent = money(chosen().reduce(function (s, x) { return s + x.p.price * x.q; }, 0)); }
+
+  // 順豐 needs every chosen product to allow it; 門市自取 needs every chosen product to be a stock or pre-order item.
+  function deliveryOk(d, list) {
+    return list.every(function (x) { return d.pickup ? hasSource(x.p) : chOf(x.p).indexOf("sf") >= 0; });
+  }
+  function dName(d, i) { return window.MHT.t("delivery." + i + ".name", d.name); }
+  function dNote(d, i) { return window.MHT.t("delivery." + i + ".note", d.note || ""); }
 
   function renderDelivery() {
     $("#delivery").innerHTML = delivery.map(function (d, i) {
-      return '<label class="pill"><input type="radio" name="delivery" value="' + i + '"' + (i === 0 ? " checked" : "") + "><span>" + esc(d.name) + "</span></label>";
+      return '<label class="pill"><input type="radio" name="delivery" value="' + i + '"' + (i === pickedDelivery ? " checked" : "") + "><span>" + esc(dName(d, i)) + "</span></label>";
     }).join("");
     syncDelivery();
   }
-  function curDelivery() { var r = $('input[name="delivery"]:checked'); return delivery[r ? +r.value : 0] || {}; }
+  function curRadio() { return $('input[name="delivery"]:checked'); }
+  function curDelivery() { var r = curRadio(); return delivery[r ? +r.value : 0] || {}; }
   function syncDelivery() {
+    var list = chosen(), blocked = false, firstOk = null;
+    $$('input[name="delivery"]').forEach(function (r) {
+      var ok = deliveryOk(delivery[+r.value] || {}, list);
+      r.disabled = !ok; r.parentNode.classList.toggle("is-off", !ok);
+      if (!ok) blocked = true; else if (!firstOk) firstOk = r;
+    });
+    var cur = curRadio();
+    if ((!cur || cur.disabled) && firstOk) firstOk.checked = true;
+    cur = curRadio();
+    if (cur) pickedDelivery = +cur.value;
     var d = curDelivery();
-    $("#delivery-note").textContent = d.note || "";
+    $("#delivery-note").textContent = (cur ? dNote(d, +cur.value) : "") + (blocked ? " " + T("delivery.blocked") : "");
     $("#address-wrap").hidden = !!d.pickup;
   }
   $("#delivery").addEventListener("change", syncDelivery);
 
   function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; errorEl.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
 
-  // Orders go to the shop's own Firebase database (viewed on /admin).
-  // If Firebase is not set up, an optional Formspree link in settings.js is used instead.
+  // Orders go to the shop's own Firebase database (viewed on /admin). The order number is the document name,
+  // so nobody can overwrite an order and a payment screenshot can be tied to the account that placed it.
   function sendOrder(o) {
-    if (window.FIREBASE_CONFIG) {
-      return getDb().then(function (c) {
-        return c.fs.addDoc(c.fs.collection(c.db, "orders"), {
-          orderNo: o.orderNo, name: o.name, contact: o.contact, delivery: o.delivery, address: o.address, notes: o.notes,
-          items: o.items, total: o.total, status: "new", createdAt: c.fs.serverTimestamp()
-        });
+    return getDb().then(function (c) {
+      var u = c && c.auth.currentUser;
+      if (!u) throw new Error("login");
+      return c.fs.setDoc(c.fs.doc(c.db, "orders", o.orderNo), {
+        orderNo: o.orderNo, uid: u.uid, email: u.email || "", name: o.name, contact: o.contact, delivery: o.delivery, address: o.address,
+        notes: o.notes, items: o.items, total: o.total, agreed: true, status: "new", createdAt: c.fs.serverTimestamp()
       });
-    }
-    return fetch(S.formEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ _subject: "新訂單 " + o.orderNo + " · " + o.name, orderNo: o.orderNo, name: o.name, contact: o.contact,
-        delivery: o.delivery, address: o.address, notes: o.notes, total: money(o.total), order: o.text })
-    }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); });
+    });
+  }
+
+  function newOrderNo() {
+    var abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", b = new Uint8Array(8);
+    (window.crypto || window.msCrypto).getRandomValues(b);
+    return "MH-" + Array.prototype.map.call(b, function (x) { return abc.charAt(x % 32); }).join("");
   }
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!window.MHA.user) { window.MHA.open("in"); return showError(T("err.login")); }
     var name = $("#f-name").value.trim(), contact = $("#f-contact").value.trim(), address = $("#f-address").value.trim();
-    var notes = $("#f-notes").value.trim(), d = curDelivery(), list = chosen();
-    if (!name) return showError("請填寫姓名。");
-    if (!contact) return showError("請填寫 Instagram 帳號或電話，方便我們聯絡你。");
-    if (!list.length) return showError("請最少揀選一款貨品。");
-    if (!d.pickup && !address) return showError("請填寫收件地址。");
+    var notes = $("#f-notes").value.trim(), d = curDelivery(), list = chosen(), r = curRadio();
+    if (!name) return showError(T("err.name"));
+    if (!contact) return showError(T("err.contact"));
+    if (!list.length) return showError(T("err.items"));
+    if (!r || r.disabled) return showError(T("err.mixed"));
+    if (!d.pickup && !address) return showError(T("err.address"));
+    if (!$("#f-agree").checked) return showError(T("err.agree"));
     if ($("#f-website").value) return; // spam trap
     errorEl.hidden = true;
 
     var total = list.reduce(function (s, x) { return s + x.p.price * x.q; }, 0);
-    var orderNo = "MH-" + Date.now().toString(36).slice(-5).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
-    var itemsText = list.map(function (x) { return "- " + x.p.group + " " + x.p.name + " x" + x.q + " (" + money(x.p.price * x.q) + ")"; }).join("\n");
-    var text = ["訂單編號：" + orderNo, "姓名：" + name, "聯絡：" + contact, "交收：" + d.name,
-      d.pickup ? "" : "地址：" + address, "貨品：\n" + itemsText, "貨品總額（未計運費）：" + money(total),
-      notes ? "備註：" + notes : ""].filter(Boolean).join("\n");
-
-    var order = { orderNo: orderNo, name: name, contact: contact, delivery: d.name, address: d.pickup ? "" : address, notes: notes,
-      items: list.map(function (x) { return { group: x.p.group, name: x.p.name, price: x.p.price, qty: x.q }; }), total: total, text: text };
+    var order = {
+      orderNo: newOrderNo(), name: name, contact: contact, delivery: dName(d, +r.value), address: d.pickup ? "" : address, notes: notes,
+      items: list.map(function (x) { return { group: x.p.group, name: x.p.name, price: x.p.price, qty: x.q, mode: x.mode }; }), total: total
+    };
     pending = order;
     openReview(order);
   });
@@ -249,12 +284,13 @@
   var pending = null, review = $("#review");
   function openReview(o) {
     $("#review-summary").innerHTML = o.items.map(function (i) {
-      return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
-    }).join("") + '<div class="tot"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>";
-    var rows = [["姓名", o.name], ["聯絡方式", o.contact], ["交收方式", o.delivery]];
-    if (o.address) rows.push(["收件地址", o.address]);
-    if (o.notes) rows.push(["備註", o.notes]);
-    $("#review-info").innerHTML = rows.map(function (r) { return "<div><dt>" + r[0] + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("");
+      return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + " · " + esc(T("chan." + i.mode)) + "</span><span>" + money(i.price * i.qty) + "</span></div>";
+    }).join("") + '<div class="tot"><span>' + esc(T("review.total")) + "</span><span>" + money(o.total) + "</span></div>";
+    var rows = [[T("review.name"), o.name], [T("review.contact"), o.contact], [T("review.email"), window.MHA.user.email], [T("review.delivery"), o.delivery]];
+    if (o.address) rows.push([T("review.address"), o.address]);
+    if (o.notes) rows.push([T("review.notes"), o.notes]);
+    $("#review-info").innerHTML = rows.map(function (r) { return "<div><dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("");
+    $("#review-ok").textContent = T("review.ok");
     $("#review-error").hidden = true;
     review.showModal();
   }
@@ -262,36 +298,49 @@
   $("#review-ok").addEventListener("click", function () {
     if (!pending) return;
     var btn = this, o = pending;
-    btn.disabled = true; btn.textContent = "提交中…";
+    btn.disabled = true; btn.textContent = T("review.sending");
     sendOrder(o).then(function () {
       try {
         sessionStorage.setItem("mh-order", JSON.stringify({ orderNo: o.orderNo, total: o.total, contact: o.contact, delivery: o.delivery, items: o.items }));
       } catch (e) { /* the payment page also reads the order number and amount from the address */ }
       location.href = "pay.html?o=" + encodeURIComponent(o.orderNo) + "&t=" + o.total;
-    }).catch(function () {
+    }).catch(function (err) {
       review.close();
-      showError("提交失敗。請檢查網絡後再試，或在 Instagram 私訊 @" + S.instagram + "。");
-      btn.disabled = false; btn.textContent = "確認訂單，前往付款";
+      if (err && err.message === "login") { window.MHA.open("in"); showError(T("err.login")); }
+      else showError(T("err.submit", { ig: S.instagram }));
+      btn.disabled = false; btn.textContent = T("review.ok");
     });
   });
 
-  // The order form is switched off until orders have somewhere to go, or while the shop has closed it on the admin page.
+  // The order form needs Firebase, an open shop and a signed-in customer.
   function syncOrderForm() {
-    var off = (!window.FIREBASE_CONFIG && !S.formEndpoint) || S.ordersOpen === false;
-    $("#closed").hidden = !off; form.hidden = off;
+    var off = !window.FIREBASE_CONFIG || S.ordersOpen === false, u = window.MHA.user, ready = window.MHA.ready;
+    $("#closed").hidden = !off;
+    $("#gate").hidden = off || !ready || !!u;
+    form.hidden = off || !u;
+    if (u) {
+      $("#whoami").textContent = u.email || "";
+      if (!$("#f-name").value && u.displayName) $("#f-name").value = u.displayName;
+    }
     $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; });
   }
+  $("#gate-btn").addEventListener("click", function () { window.MHA.open("in"); });
+  $("#form-signout").addEventListener("click", function () { window.MHA.signOut(); });
+  window.MHA.onChange(syncOrderForm);
   syncOrderForm();
 
-  function emptyShelf() { return '<p class="loading" id="empty-shelf">暫時未有商品。</p>'; }
+  function emptyShelf() { return '<p class="loading" id="empty-shelf">' + esc(T("shelf.empty")) + "</p>"; }
 
   renderDelivery();
-  loadRemote().then(function (remote) {
+  window.MHA.init();
+  Promise.all([loadRemote(), window.MHT.init()]).then(function (r) {
+    var remote = r[0];
     if (remote && remote.site) {
       SITE_KEYS.forEach(function (k) { if (remote.site[k] !== undefined && remote.site[k] !== "") S[k] = remote.site[k]; });
       if (remote.site.ordersOpen === false) S.ordersOpen = false;
-      bindSettings(); syncOrderForm();
+      bindSettings();
     }
+    syncOrderForm(); renderDelivery(); window.MHA.refresh();
     if (remote && remote.products && remote.products.length) return remote.products;
     return loadProducts();
   }).then(function (list) {

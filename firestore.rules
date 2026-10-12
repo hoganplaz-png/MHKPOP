@@ -1,9 +1,11 @@
 rules_version = '2';
 
 // Who can do what:
-//  - Orders: anyone visiting the website can ADD a new order (only with the fields below).
-//    Only the shop admin (signed in with the admin email) can read orders or change their status. Nobody can delete.
-//  - Products, payment methods and website text: anyone can READ them (that is what the website shows).
+//  - Orders: a customer must be signed in. They can ADD an order under their own account (the order number is
+//    the document name, so it can never be overwritten) and read only their own orders.
+//    Only the shop admin (signed in with the admin email) can read all orders or change a status. Nobody can delete.
+//  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
+//  - Products, payment methods, website text and wording: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -13,10 +15,18 @@ service cloud.firestore {
         && request.auth.token.email in ['__ADMIN_EMAIL__'];
     }
 
-    function validOrder() {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validOrder(orderId) {
       let d = request.resource.data;
-      return d.keys().hasOnly(['orderNo', 'name', 'contact', 'delivery', 'address', 'notes', 'items', 'total', 'status', 'createdAt'])
-        && d.orderNo is string && d.orderNo.size() > 0 && d.orderNo.size() <= 20
+      let keys = ['orderNo', 'uid', 'email', 'name', 'contact', 'delivery', 'address', 'notes', 'items', 'total', 'agreed', 'status', 'createdAt'];
+      return signedIn()
+        && d.keys().hasOnly(keys) && d.keys().hasAll(keys)
+        && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}') && orderId == d.orderNo
+        && d.uid == request.auth.uid
+        && d.email is string && d.email.size() <= 200 && d.email == request.auth.token.email
         && d.name is string && d.name.size() > 0 && d.name.size() <= 100
         && d.contact is string && d.contact.size() > 0 && d.contact.size() <= 100
         && d.delivery is string && d.delivery.size() <= 100
@@ -24,6 +34,7 @@ service cloud.firestore {
         && d.notes is string && d.notes.size() <= 1000
         && d.items is list && d.items.size() > 0 && d.items.size() <= 40
         && d.total is number && d.total >= 0 && d.total < 1000000
+        && d.agreed == true
         && d.status == 'new'
         && d.createdAt == request.time;
     }
@@ -38,7 +49,9 @@ service cloud.firestore {
     function validProduct() {
       let d = request.resource.data;
       let keys = ['group', 'name', 'price', 'tag', 'image', 'status', 'order'];
-      return d.keys().hasOnly(keys) && d.keys().hasAll(keys)
+      return d.keys().hasOnly(['group', 'name', 'price', 'tag', 'image', 'status', 'order', 'channels', 'eta']) && d.keys().hasAll(keys)
+        && (!('channels' in d) || (d.channels is list && d.channels.size() <= 3 && d.channels.hasOnly(['stock', 'preorder', 'sf'])))
+        && optStr(d, 'eta', 60)
         && d.group is string && d.group.size() > 0 && d.group.size() <= 60
         && d.name is string && d.name.size() > 0 && d.name.size() <= 100
         && d.price is number && d.price >= 0 && d.price < 1000000
@@ -78,13 +91,17 @@ service cloud.firestore {
     }
 
     // Payment screenshots that customers upload on the payment page. Only the admin can see them.
+    // The order must exist and belong to the signed-in customer.
     function validProof() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['orderNo', 'image', 'note', 'createdAt'])
-        && d.orderNo is string && d.orderNo.size() > 0 && d.orderNo.size() <= 20
+      return signedIn()
+        && d.keys().hasOnly(['orderNo', 'image', 'note', 'createdAt'])
+        && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}')
         && d.image is string && d.image.size() <= 400000 && d.image.matches('data:image/.*')
         && d.note is string && d.note.size() <= 200
-        && d.createdAt == request.time;
+        && d.createdAt == request.time
+        && exists(/databases/$(database)/documents/orders/$(d.orderNo))
+        && get(/databases/$(database)/documents/orders/$(d.orderNo)).data.uid == request.auth.uid;
     }
 
     match /proofs/{proofId} {
@@ -105,9 +122,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Wording of the website pages (every key is a piece of text; see the 全部文字 tab on the admin page).
+    match /settings/texts {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['t'])
+        && request.resource.data.t is map
+        && request.resource.data.t.size() <= 700;
+      allow delete: if false;
+    }
+
     match /orders/{orderId} {
-      allow create: if validOrder();
-      allow read: if isAdmin();
+      allow create: if validOrder(orderId);
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status in ['new', 'confirmed', 'done', 'cancelled'];

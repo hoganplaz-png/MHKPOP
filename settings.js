@@ -2,22 +2,15 @@
 //  店舖設定  SHOP SETTINGS
 //  This is the only file you need to edit for shop details.
 //  Change the text between the quote marks " ". Keep the quotes and commas.
-//  Products (price, tag, sold out) are NOT here: they live in your Google Sheet.
+//  Products, payment methods and every word on the pages are changed on the admin page (/admin).
+//  The values here are only used until you save your own on the admin page.
 // ===================================================================
 
 window.SETTINGS = {
 
-  // ---------- 1. 商品表 PRODUCT SHEET (Google Sheet) ----------
-  // Paste the link you get from: Google Sheet > File > Share > Publish to web >
-  // choose the sheet tab and "Comma-separated values (.csv)" > Publish > copy link.
-  // Leave "" to use the sample products at the bottom of this file.
+  // ---------- 1. 後備商品 ----------
+  // Leave "" (products are managed on the admin page). Only used if the products cannot be loaded.
   sheetCsvUrl: "",
-
-  // ---------- 2. 落單表格 ORDER FORM ----------
-  // Orders are emailed to you through a free Formspree form (formspree.io).
-  // Paste your form link here, e.g. "https://formspree.io/f/abcdwxyz".
-  // While this is "", the form is switched off and customers are asked to DM you.
-  formEndpoint: "",
 
   // ---------- 3. 店舖資料 SHOP DETAILS ----------
   instagram: "mh.kpop.sell",
@@ -37,7 +30,7 @@ window.SETTINGS = {
   // After the customer confirms the order, the website opens a payment page.
   // Add, change or switch off payment methods on the admin page (付款方式 tab).
   // These two are used until you save your own list there.
-  paymentNote: "付款時請在備註寫上訂單編號。付款後請將付款截圖連同訂單編號傳到 Instagram，我們收款後會確認訂單。",
+  paymentNote: "付款時請在備註寫上訂單編號。付款後可在此頁上傳付款截圖，我們收到款項並核對後會確認訂單。",
   defaultPayments: [
     { name: "PayMe", type: "qr", image: "assets/payme-qr.jpg", details: "打開 PayMe，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
     { name: "支付寶 Alipay", type: "qr", image: "assets/alipay-qr.jpg", details: "打開支付寶，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },

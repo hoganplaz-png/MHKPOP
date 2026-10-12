@@ -1,0 +1,8 @@
+/* terms and privacy pages */
+.legal { max-width: 760px; padding-top: clamp(32px, 5vw, 64px); padding-bottom: clamp(56px, 7vw, 96px); }
+.legal h1 { display: block; font-family: "Noto Sans TC", sans-serif; font-weight: 900; font-size: clamp(34px, 6vw, 56px); letter-spacing: -.02em; line-height: 1.1; }
+.legal .updated { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.legal .lead { margin-top: 18px; }
+.legal h2 { margin: 36px 0 10px; font-size: 21px; font-weight: 900; letter-spacing: 0; }
+.legal p { margin-top: 10px; line-height: 1.9; overflow-wrap: anywhere; }
+.legal a { text-underline-offset: 3px; }

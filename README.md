@@ -1,6 +1,6 @@
 # MHKPOP shop website
 
-Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list and order **only through the order form**.
+Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list, **create an account**, and order **only through the order form**.
 You run everything from the admin page, with no coding.
 
 Live site: https://mhkpop-4cf2f.web.app  ·  Admin page: https://mhkpop-4cf2f.web.app/admin
@@ -11,15 +11,17 @@ Sign in with the admin email and the password you set in Firebase Authentication
 | Tab | What you can do |
 |---|---|
 | **訂單** (Orders) | See every order, search, filter by status, change status (新訂單, 已確認, 已完成, 已取消), export CSV |
-| **商品** (Products) | Add, edit and delete albums. Change price, tag and photo. Mark 售罄 (sold out), 只限門市 (in-store only) or 隱藏 (hide). Move items up or down. Changes show on the website straight away |
+| **商品** (Products) | Add, edit and delete albums. Change price, tag and photo. Choose how each album can be bought: **格仔舖現貨** (in stock at the store), **訂購** (pre-order, with an optional arrival date) and/or **可寄順豐** (can be sent by SF Express). Mark 售罄 (sold out) or 隱藏 (hide). Move items up or down. Changes show on the website straight away |
 | **付款方式** (Payment methods) | Choose what customers see on the payment page: QR codes (PayMe, Alipay, WeChat Pay HK...), text details (FPS number, bank account, with a copy button) or a payment link (PayPal.me, Stripe Payment Link). Turn methods on or off, reorder them |
 | **網站內容** (Website text) | Headline, intro, opening hours, address, stall name, enquiry note, Instagram name, and a switch to **open or close online ordering** |
+| **全部文字** (Every word) | Every other sentence on the website: menu, buttons, steps, FAQ, order-form messages, the payment page, the **Terms of Service** and the **Privacy Policy**. Each item shows the current wording. Edit it and press 儲存全部修改; press 還原 to go back to the original |
 
 Photos are shrunk automatically in your browser and saved with the product.
-The delivery choices (順豐到付, 門市自取) are in `settings.js`.
+The names of the delivery choices (順豐到付, 門市自取) can be changed in the **全部文字** tab. Which products can use which choice follows the product settings: 順豐 needs every chosen album to be 可寄順豐; 門市自取 needs every chosen album to be 格仔舖現貨 or 訂購.
 
 ## How ordering and payment work
-1. The customer fills in the order form and taps **核對訂單**.
+0. The customer creates an account (email and password; a verification email is sent) or signs in. The order form is only shown to signed-in customers. Accounts are managed in Firebase console, Authentication, where you can also disable or delete one.
+1. The customer fills in the order form, ticks the box to agree to the Terms and Privacy Policy, and taps **核對訂單**.
 2. A review box shows the items, total, contact, delivery and address. **返回修改** goes back, **確認訂單，前往付款** saves the order and opens the payment page (`/pay`).
 3. The payment page shows the order number, the amount and the payment methods set up on the admin page (PayMe and Alipay are included at the start).
 4. The customer can upload a payment screenshot on the payment page. It is saved for you only and shows inside the order on the admin page (filter: 有付款截圖).
@@ -32,9 +34,19 @@ For link methods, `{amount}` and `{order}` in the link are filled in automatical
 ## Security rules (Firestore)
 `firestore.rules` is the source. The rules are published **by hand** in Firebase console, under **Firestore Database → 規則 (Rules) → 發布 (Publish)**, because the deploy account is not allowed to publish them. After the first paste, paste again only when `firestore.rules` changes. Replace `__ADMIN_EMAIL__` with the email in `admin-email.txt` before pasting.
 
-- Anyone can add a valid order. Only the admin email can read orders or change their status. Nobody can delete orders.
+- A signed-in customer can add an order under their own account, and read only their own orders. The order number is the document name, so an order can never be overwritten. Only the admin email can read all orders or change their status. Nobody can delete orders.
 - Anyone can read products, payment methods and website text. Only the admin email can change them.
-- Anyone can upload a payment screenshot for an order. Only the admin email can see or delete screenshots.
+- Only the customer who placed an order can upload a payment screenshot for it. Only the admin email can see or delete screenshots.
+- Only the admin email can change the wording of the website (`settings/texts`).
+
+## Security
+- `firebase.json` sends strict security headers on every page: Content-Security-Policy (only this site and Google Firebase scripts, fonts and connections), HSTS, no framing (clickjacking), no MIME sniffing, a tight Referrer-Policy and Permissions-Policy.
+- Customer text is always escaped before it is shown, so a customer cannot inject code into your admin page.
+- The admin page only works for the admin email; other accounts see a "no permission" message and no data.
+- Not covered: the total of an order is calculated in the browser. The admin page warns when an order total does not match its items. Firebase **App Check** (reCAPTCHA) can be added later against automated spam.
+
+## Terms and privacy
+`terms.html` (服務條款) and `privacy.html` (私隱政策, also the Personal Information Collection Statement under the Hong Kong PDPO) are linked in the footer, at sign-up and at the order form. They are templates written for a small Hong Kong online shop. Read them, change anything that does not match how you really run the shop (in the **全部文字** tab), and consider having a lawyer check them.
 
 ## Deploy
 Every change pushed to `main` is deployed to Firebase Hosting by GitHub Actions (`.github/workflows/deploy.yml`).
@@ -44,7 +56,9 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 
 ## Files
 - `index.html`, `styles.css`, `script.js`: the public website
+- `account.js`: customer sign-up and sign-in. `fb.js`: loads Firebase. `texts.js`: the editable-wording system
 - `pay.html`, `pay.js`, `pay.css`: the payment page
+- `terms.html`, `privacy.html`, `legal.css`, `legal.js`: Terms of Service and Privacy Policy
 - `admin.html`, `admin.js`, `admin.css`: the admin page
 - `settings.js`: fallback shop details and delivery choices (used until you save text on the admin page)
 - `firestore.rules`, `firebase.json`, `rules-manual.txt`, `admin-email.txt`: Firebase setup

@@ -220,3 +220,46 @@ h2#stall { font-size: clamp(38px, 5.4vw, 76px); line-height: 1.08; letter-spacin
 .review-info dd { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .review .hint { margin-top: 12px; }
+
+/* wording edited on the admin page may contain line breaks */
+[data-t] { white-space: pre-line; }
+
+/* account, sign-in gate, availability badges */
+.nav-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nav-actions .btn { min-height: 44px; }
+#acct-btn { max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 1.6; }
+.link { background: none; border: 0; padding: 8px 0; min-height: 44px; font: inherit; font-size: 14px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.gate { padding: clamp(18px, 3vw, 28px); border-radius: 16px; background: var(--panel); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.gate h3 { font-size: 24px; font-weight: 900; }
+.gate p { line-height: 1.8; }
+.whoami { font-size: 14px; color: var(--muted); margin-bottom: 14px; overflow-wrap: anywhere; }
+.whoami b { color: var(--ink); font-weight: 700; }
+.check { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.7; font-weight: 400; margin-top: 14px; }
+.check input { width: 24px; height: 24px; flex: none; margin-top: 2px; accent-color: var(--ink); }
+.check a { text-underline-offset: 3px; }
+.acct form { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.acct label { font-size: 14px; font-weight: 700; margin-top: 8px; display: block; }
+.acct label.check { display: flex; font-weight: 400; margin-top: 14px; }
+.acct .btn { margin-top: 14px; }
+.acct .link { align-self: flex-start; }
+.tabs2 { display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+.tabs2 button { background: transparent; border: 0; border-bottom: 3px solid transparent; padding: 10px 18px; min-height: 44px; font: inherit; font-size: 16px; font-weight: 500; color: var(--muted); cursor: pointer; }
+.tabs2 button[aria-selected="true"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+.chans { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chan { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink); }
+.chan-stock { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+.eta { font-size: 12px; color: var(--muted); align-self: center; }
+.chan-line { margin-top: 2px; }
+select.mode { display: block; margin-top: 8px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; max-width: 100%; }
+.pill input:disabled + span { opacity: .4; cursor: not-allowed; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.foot-links a { display: inline-flex; align-items: center; min-height: 44px; }
+
+@media (max-width: 720px) {
+  .nav { position: static; }
+  .nav-links { gap: 2px 18px; font-size: 14px; }
+  .nav-links a { display: inline-flex; align-items: center; min-height: 44px; }
+  .nav-actions { width: 100%; }
+  .nav-actions .btn { flex: 1 1 0; padding-left: 12px; padding-right: 12px; }
+  #acct-btn { max-width: none; }
+}
