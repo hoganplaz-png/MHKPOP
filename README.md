@@ -21,9 +21,7 @@ Once this is set up, every change saved to the `main` branch goes live by itself
 
 1. Create a Firebase project at https://console.firebase.google.com, then open **Build → Hosting → Get started** and click through until it finishes.
 2. In Firebase go to **Project settings (gear icon) → Service accounts → Generate new private key**. A `.json` file downloads. Keep it private.
-3. In this GitHub repository open **Settings → Secrets and variables → Actions → New repository secret**, and add two secrets:
-   - Name `FIREBASE_SERVICE_ACCOUNT`: open the `.json` file in a text editor, copy **everything**, paste it as the value.
-   - Name `FIREBASE_PROJECT_ID`: your project ID, shown in Firebase Project settings (for example `mhkpop-shop`).
+3. In this GitHub repository open **Settings → Secrets and variables → Actions → New repository secret**. Name it `FIREBASE_SERVICE_ACCOUNT`, open the `.json` file in a text editor, copy **everything**, and paste it as the value. This is the only secret needed. The project ID is read from the file.
 4. Open the **Actions** tab, choose **Deploy to Firebase Hosting**, click **Run workflow**. About a minute later your site is live at `https://<project-id>.web.app`.
 
 Never send the `.json` key to anyone or paste it into a chat. Only paste it into the GitHub secret.

@@ -1,7 +1,7 @@
 name: Deploy to Firebase Hosting
 
 # Every change pushed to main goes live automatically.
-# One-time setup (two GitHub secrets) is explained in README.md.
+# One-time setup (one GitHub secret) is explained in README.md.
 on:
   push:
     branches: [main]
@@ -18,20 +18,26 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Check that the Firebase secrets are set
+      - name: Read the project ID from the service account key
+        id: pid
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          if [ -z "$SA" ] || [ -z "$PID" ]; then
-            echo "::error::Missing secret FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID. See 'Automatic deploy' in README.md."
+          if [ -z "$SA" ]; then
+            echo "::error::Missing secret FIREBASE_SERVICE_ACCOUNT. See 'Automatic deploy' in README.md."
             exit 1
           fi
+          PID=$(printf '%s' "$SA" | jq -r '.project_id // empty')
+          if [ -z "$PID" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT does not look like a Firebase key file (no project_id). Paste the whole .json file."
+            exit 1
+          fi
+          echo "id=$PID" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          projectId: ${{ steps.pid.outputs.id }}
           channelId: live
