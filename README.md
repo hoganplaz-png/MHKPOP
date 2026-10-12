@@ -22,7 +22,10 @@ The delivery choices (順豐到付, 門市自取) are in `settings.js`.
 1. The customer fills in the order form and taps **核對訂單**.
 2. A review box shows the items, total, contact, delivery and address. **返回修改** goes back, **確認訂單，前往付款** saves the order and opens the payment page (`/pay`).
 3. The payment page shows the order number, the amount and the payment methods set up on the admin page (PayMe and Alipay are included at the start).
-4. The order appears in the admin page as 新訂單. After you receive the money, change it to 已確認.
+4. The customer can upload a payment screenshot on the payment page. It is saved for you only and shows inside the order on the admin page (filter: 有付款截圖).
+5. The order appears in the admin page as 新訂單. Check the amount and the order number in your PayMe or Alipay app, then change it to 已確認.
+
+Personal PayMe and Alipay QR codes cannot be checked automatically. Automatic confirmation needs a business account with an API (PayMe for Business, Alipay merchant, or Stripe) and a small server, so it is a separate project.
 
 For link methods, `{amount}` and `{order}` in the link are filled in automatically, for example `https://paypal.me/yourname/{amount}HKD`.
 
@@ -31,6 +34,7 @@ For link methods, `{amount}` and `{order}` in the link are filled in automatical
 
 - Anyone can add a valid order. Only the admin email can read orders or change their status. Nobody can delete orders.
 - Anyone can read products, payment methods and website text. Only the admin email can change them.
+- Anyone can upload a payment screenshot for an order. Only the admin email can see or delete screenshots.
 
 ## Deploy
 Every change pushed to `main` is deployed to Firebase Hosting by GitHub Actions (`.github/workflows/deploy.yml`).

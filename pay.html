@@ -43,6 +43,19 @@
       <div class="panel" id="panel" aria-live="polite"></div>
 
       <p class="note" id="pay-note"></p>
+
+      <section class="proof" id="proof" hidden>
+        <h2>已付款？上傳付款截圖</h2>
+        <p class="hint">付款後可上傳付款成功的截圖，方便我們核對收款。上傳不是必須，亦不代表訂單已確認。</p>
+        <label for="proof-file">付款截圖</label>
+        <input id="proof-file" type="file" accept="image/*">
+        <div class="proof-preview" id="proof-preview" aria-hidden="true"></div>
+        <label for="proof-note">備註（選填，例如付款時間或參考編號）</label>
+        <input id="proof-note" class="field" type="text" maxlength="200">
+        <p class="error" id="proof-error" role="alert" hidden></p>
+        <button class="btn btn-solid" type="button" id="proof-send">傳送付款截圖</button>
+        <p class="proof-done" id="proof-done" role="status" hidden>已收到付款截圖。我們核對收款後會確認訂單。</p>
+      </section>
       <details class="order-sum" id="order-sum" hidden>
         <summary>查看訂單內容</summary>
         <div class="summary" id="sum-body"></div>

@@ -86,3 +86,8 @@ dialog h2 { margin: 0 0 8px; font-size: 24px; font-weight: 900; }
 .dlg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .confirm { margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--panel); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .confirm p { margin: 0; flex: 1 1 100%; font-size: 14px; line-height: 1.7; }
+
+.o-proof { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
+.o-proof.none { color: var(--muted); margin-bottom: 0; }
+.proof-thumb { width: 64px; height: 64px; padding: 0; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; background: #fff; cursor: pointer; }
+.proof-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }

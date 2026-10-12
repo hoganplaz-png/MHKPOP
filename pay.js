@@ -103,6 +103,49 @@
     methods = list.filter(function (m) { return m.enabled !== false; });
     render();
   }
+  // ---------- payment screenshot upload (saved for the shop owner only) ----------
+  var proofImage = "";
+  function shrinkPhoto(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var sc = Math.min(1, 1200 / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+        var c = document.createElement("canvas"); c.width = w; c.height = h;
+        var x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
+        var qual = 0.8, out = c.toDataURL("image/jpeg", qual);
+        while (out.length > 300000 && qual > 0.35) { qual -= 0.1; out = c.toDataURL("image/jpeg", qual); }
+        out.length > 380000 ? reject(new Error("too big")) : resolve(out);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("bad image")); };
+      img.src = url;
+    });
+  }
+  if (window.FIREBASE_CONFIG) {
+    $("#proof").hidden = false;
+    $("#proof-file").addEventListener("change", function (e) {
+      var f = e.target.files[0]; if (!f) return;
+      var err = $("#proof-error"); err.hidden = true; $("#proof-done").hidden = true;
+      shrinkPhoto(f).then(function (d) {
+        proofImage = d; $("#proof-preview").innerHTML = '<img alt="" src="' + d + '">';
+      }).catch(function () { proofImage = ""; err.textContent = "這張圖片無法使用，請試另一張。"; err.hidden = false; });
+    });
+    $("#proof-send").addEventListener("click", function () {
+      var err = $("#proof-error"), btn = this;
+      if (!proofImage) { err.textContent = "請先選擇付款截圖。"; err.hidden = false; return; }
+      err.hidden = true; btn.disabled = true; btn.textContent = "傳送中…";
+      Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
+        var fs = m[1], db = fs.getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG));
+        return fs.addDoc(fs.collection(db, "proofs"), { orderNo: order.orderNo, image: proofImage, note: $("#proof-note").value.trim(), createdAt: fs.serverTimestamp() });
+      }).then(function () {
+        $("#proof-done").hidden = false; proofImage = ""; $("#proof-file").value = ""; $("#proof-preview").innerHTML = ""; $("#proof-note").value = "";
+      }).catch(function () {
+        err.textContent = "傳送失敗。請稍後再試，或把截圖傳到 Instagram。"; err.hidden = false;
+      }).then(function () { btn.disabled = false; btn.textContent = "傳送付款截圖"; });
+    });
+  }
+
   start(null);
   loadRemote().then(function (remote) { if (remote) start(remote); });
 })();

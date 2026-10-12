@@ -54,6 +54,7 @@
             <button type="button" class="btn btn-line" id="csv">匯出 CSV</button>
           </div>
         </div>
+        <p class="hint" style="margin-bottom:14px">收到款項後，請先在 PayMe / 支付寶 App 核對金額及備註的訂單編號，才把訂單改為「已確認」。客人上傳的付款截圖會顯示在訂單內，只作參考。</p>
         <p class="empty" id="empty" hidden>未有訂單。</p>
         <div class="orders" id="orders"></div>
       </section>
@@ -162,6 +163,14 @@
         <button type="button" class="btn btn-line" id="p-delete-no">不刪除</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- 付款截圖 -->
+  <dialog id="prdlg" aria-label="付款截圖">
+    <h2 id="prdlg-title">付款截圖</h2>
+    <p class="hint" id="prdlg-meta"></p>
+    <img id="prdlg-img" alt="客人上傳的付款截圖" style="max-width:100%;max-height:70dvh;display:block;margin:12px auto;border-radius:10px">
+    <div class="dlg-actions"><button type="button" class="btn btn-solid" id="prdlg-close">關閉</button></div>
   </dialog>
 
   <!-- 付款方式表單 -->
