@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>MHKPOP 訂單管理</title>
+  <title>MHKPOP 網站管理</title>
   <link rel="icon" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,9 +13,10 @@
 </head>
 <body>
   <header class="bar">
-    <a class="brand" href="/"><img src="assets/logo.png" alt="" width="40" height="39"><span>MHKPOP 訂單管理</span></a>
+    <a class="brand" href="/"><img src="assets/logo.png" alt="" width="40" height="39"><span>MHKPOP 網站管理</span></a>
     <div class="who" id="who" hidden>
       <span id="who-email"></span>
+      <a class="btn btn-line" href="/" target="_blank" rel="noopener">查看網站</a>
       <button type="button" class="btn btn-line" id="signout">登出</button>
     </div>
   </header>
@@ -35,20 +36,119 @@
       </form>
     </section>
 
-    <section class="dash" id="dash" hidden>
-      <div class="tools">
-        <div class="chips" id="filters" role="group" aria-label="按狀態篩選"></div>
-        <div class="tools-right">
-          <label class="sr" for="search">搜尋訂單</label>
-          <input id="search" class="field" type="search" placeholder="搜尋姓名、聯絡方式、訂單編號">
-          <button type="button" class="btn btn-line" id="csv">匯出 CSV</button>
-        </div>
+    <div id="app" hidden>
+      <div class="tabs" role="tablist" aria-label="管理選單">
+        <button type="button" role="tab" class="tab" id="t-orders" data-tab="orders" aria-selected="true" aria-controls="p-orders">訂單 <span class="count" id="c-orders"></span></button>
+        <button type="button" role="tab" class="tab" id="t-products" data-tab="products" aria-selected="false" aria-controls="p-products">商品</button>
+        <button type="button" role="tab" class="tab" id="t-site" data-tab="site" aria-selected="false" aria-controls="p-site">網站內容</button>
       </div>
-      <p class="empty" id="empty" hidden>未有訂單。</p>
-      <div class="orders" id="orders"></div>
-    </section>
+
+      <!-- 訂單 -->
+      <section id="p-orders" role="tabpanel" aria-labelledby="t-orders">
+        <div class="tools">
+          <div class="chips" id="filters" role="group" aria-label="按狀態篩選"></div>
+          <div class="tools-right">
+            <label class="sr" for="search">搜尋訂單</label>
+            <input id="search" class="field" type="search" placeholder="搜尋姓名、聯絡方式、訂單編號">
+            <button type="button" class="btn btn-line" id="csv">匯出 CSV</button>
+          </div>
+        </div>
+        <p class="empty" id="empty" hidden>未有訂單。</p>
+        <div class="orders" id="orders"></div>
+      </section>
+
+      <!-- 商品 -->
+      <section id="p-products" role="tabpanel" aria-labelledby="t-products" hidden>
+        <div class="tools">
+          <p class="hint" id="products-hint">改動會即時顯示在網站上。</p>
+          <div class="tools-right">
+            <button type="button" class="btn btn-line" id="import" hidden>匯入現有商品</button>
+            <button type="button" class="btn btn-solid" id="add-product">新增商品</button>
+          </div>
+        </div>
+        <p class="empty" id="empty-products" hidden>未有商品。按「新增商品」，或按「匯入現有商品」使用網站原本的 8 款商品。</p>
+        <div class="products" id="products"></div>
+      </section>
+
+      <!-- 網站內容 -->
+      <section id="p-site" role="tabpanel" aria-labelledby="t-site" hidden>
+        <form class="site-form" id="site-form">
+          <div class="toggle-row">
+            <input id="s-ordersOpen" type="checkbox">
+            <label for="s-ordersOpen"><b>開放網上落單</b><small>關閉後，網站會顯示「暫時未開放」，客人改用 Instagram 查詢。</small></label>
+          </div>
+          <div class="grid2">
+            <div><label for="s-headline">首頁大標題</label><input id="s-headline" class="field" type="text"></div>
+            <div><label for="s-instagram">Instagram 帳號（不用 @）</label><input id="s-instagram" class="field" type="text"></div>
+          </div>
+          <label for="s-intro">首頁簡介</label>
+          <textarea id="s-intro" class="field" rows="3"></textarea>
+          <label for="s-shelfNote">價目下方備註</label>
+          <input id="s-shelfNote" class="field" type="text">
+          <div class="grid2">
+            <div><label for="s-hours">營業時間</label><input id="s-hours" class="field" type="text"></div>
+            <div><label for="s-addressShort">地址（頂部短版）</label><input id="s-addressShort" class="field" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div><label for="s-addressLines">門市地址（每行一句）</label><textarea id="s-addressLines" class="field" rows="3"></textarea></div>
+            <div><label for="s-stall">格位名稱（每行一句）</label><textarea id="s-stall" class="field" rows="3"></textarea></div>
+          </div>
+          <label for="s-enquiryNote">查詢須知</label>
+          <input id="s-enquiryNote" class="field" type="text">
+          <label for="s-claims">店舖簡介（商業登記、營運年期等）</label>
+          <input id="s-claims" class="field" type="text">
+          <p class="error" id="site-error" role="alert" hidden></p>
+          <div class="save-row">
+            <button type="submit" class="btn btn-solid" id="site-save">儲存</button>
+            <span class="saving" id="site-saved" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+    </div>
   </main>
 
+  <!-- 商品表單 -->
+  <dialog id="pdlg" aria-labelledby="pdlg-title">
+    <form id="pform" method="dialog">
+      <h2 id="pdlg-title">新增商品</h2>
+      <div class="grid2">
+        <div><label for="p-group">組合 / 歌手</label><input id="p-group" class="field" type="text" maxlength="60" required></div>
+        <div><label for="p-name">專輯名稱</label><input id="p-name" class="field" type="text" maxlength="100" required></div>
+      </div>
+      <div class="grid2">
+        <div><label for="p-price">價錢（港幣）</label><input id="p-price" class="field" type="number" inputmode="decimal" min="0" step="1" required></div>
+        <div><label for="p-tag">標籤（選填，例如 期間限定）</label><input id="p-tag" class="field" type="text" maxlength="30"></div>
+      </div>
+      <label for="p-status">狀態</label>
+      <select id="p-status" class="field">
+        <option value="ok">有貨</option>
+        <option value="sold">售罄</option>
+        <option value="store">只限門市</option>
+        <option value="hidden">隱藏（不在網站顯示）</option>
+      </select>
+      <label for="p-photo">相片（選填，會自動縮細）</label>
+      <div class="photo-row">
+        <div class="preview" id="p-preview" aria-hidden="true"></div>
+        <div class="photo-actions">
+          <input id="p-photo" type="file" accept="image/*">
+          <button type="button" class="btn btn-line" id="p-photo-remove" hidden>移除相片</button>
+        </div>
+      </div>
+      <p class="error" id="p-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="p-save" value="save">儲存</button>
+        <button type="button" class="btn btn-line" id="p-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="p-delete" hidden>刪除商品</button>
+      </div>
+      <div class="confirm" id="p-confirm" hidden>
+        <p>確定要刪除這個商品嗎？刪除後無法還原。如只想暫時不顯示，可改為「隱藏」。</p>
+        <button type="button" class="btn btn-danger" id="p-delete-yes">確定刪除</button>
+        <button type="button" class="btn btn-line" id="p-delete-no">不刪除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="settings.js"></script>
   <script src="firebase-config.js"></script>
   <script type="module" src="admin.js"></script>
 </body>

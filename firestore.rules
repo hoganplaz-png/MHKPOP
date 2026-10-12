@@ -1,9 +1,10 @@
 rules_version = '2';
 
-// Who can do what with orders:
-//  - Anyone visiting the website can ADD a new order (only with the fields below).
-//  - Nobody can read the orders list except the shop admin (signed in with the admin email).
-//  - The admin can change an order's status, nothing else. Nobody can delete.
+// Who can do what:
+//  - Orders: anyone visiting the website can ADD a new order (only with the fields below).
+//    Only the shop admin (signed in with the admin email) can read orders or change their status. Nobody can delete.
+//  - Products and website text: anyone can READ them (that is what the website shows).
+//    Only the shop admin can add, change or delete them.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -25,6 +26,48 @@ service cloud.firestore {
         && d.total is number && d.total >= 0 && d.total < 1000000
         && d.status == 'new'
         && d.createdAt == request.time;
+    }
+
+    function optStr(d, k, max) {
+      return !(k in d) || (d[k] is string && d[k].size() <= max);
+    }
+    function optList(d, k) {
+      return !(k in d) || (d[k] is list && d[k].size() <= 6);
+    }
+
+    function validProduct() {
+      let d = request.resource.data;
+      let keys = ['group', 'name', 'price', 'tag', 'image', 'status', 'order'];
+      return d.keys().hasOnly(keys) && d.keys().hasAll(keys)
+        && d.group is string && d.group.size() > 0 && d.group.size() <= 60
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && d.price is number && d.price >= 0 && d.price < 1000000
+        && d.tag is string && d.tag.size() <= 30
+        && d.image is string && d.image.size() <= 400000
+        && d.status in ['ok', 'sold', 'store', 'hidden']
+        && d.order is number;
+    }
+
+    function validSite() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['headline', 'intro', 'shelfNote', 'hours', 'addressShort', 'addressLines', 'stall', 'enquiryNote', 'claims', 'instagram', 'ordersOpen'])
+        && optStr(d, 'headline', 200) && optStr(d, 'intro', 600) && optStr(d, 'shelfNote', 300)
+        && optStr(d, 'hours', 100) && optStr(d, 'addressShort', 150) && optStr(d, 'enquiryNote', 300)
+        && optStr(d, 'claims', 300) && optStr(d, 'instagram', 60)
+        && optList(d, 'addressLines') && optList(d, 'stall')
+        && (!('ordersOpen' in d) || d.ordersOpen is bool);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validProduct();
+      allow delete: if isAdmin();
+    }
+
+    match /settings/site {
+      allow read: if true;
+      allow create, update: if isAdmin() && validSite();
+      allow delete: if false;
     }
 
     match /orders/{orderId} {

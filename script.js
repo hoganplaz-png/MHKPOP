@@ -17,11 +17,43 @@
   ];
 
   // ---------- shop details from settings.js ----------
-  var igUrl = "https://www.instagram.com/" + S.instagram + "/";
-  $$("[data-s]").forEach(function (el) { if (S[el.dataset.s] != null) el.textContent = S[el.dataset.s]; });
-  $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; a.textContent = "@" + S.instagram; });
-  var addr = $("#address"); if (addr) addr.innerHTML = (S.addressLines || []).map(esc).join("<br>");
-  var stall = $("#stall"); if (stall) stall.innerHTML = (S.stall || []).map(esc).join("<br>");
+  var igUrl;
+  function bindSettings() {
+    igUrl = "https://www.instagram.com/" + S.instagram + "/";
+    $$("[data-s]").forEach(function (el) { if (S[el.dataset.s] != null) el.textContent = S[el.dataset.s]; });
+    $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; a.textContent = "@" + S.instagram; });
+    var addr = $("#address"); if (addr) addr.innerHTML = (S.addressLines || []).map(esc).join("<br>");
+    var stall = $("#stall"); if (stall) stall.innerHTML = (S.stall || []).map(esc).join("<br>");
+  }
+  bindSettings();
+
+  // ---------- content edited on the admin page (Firebase) ----------
+  var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
+  var dbPromise = null;
+  function getDb() {
+    if (!window.FIREBASE_CONFIG) return Promise.resolve(null);
+    if (!dbPromise) {
+      dbPromise = Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
+        return { fs: m[1], db: m[1].getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG)) };
+      });
+    }
+    return dbPromise;
+  }
+  var SITE_KEYS = ["headline", "intro", "shelfNote", "hours", "addressShort", "addressLines", "stall", "enquiryNote", "claims", "instagram", "ordersOpen"];
+  function loadRemote() {
+    var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 7000); });
+    return Promise.race([loadRemoteNow(), timeout]);
+  }
+  function loadRemoteNow() {
+    return getDb().then(function (c) {
+      if (!c) return null;
+      var fs = c.fs;
+      return Promise.all([
+        fs.getDoc(fs.doc(c.db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
+        fs.getDocs(fs.query(fs.collection(c.db, "products"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; })
+      ]).then(function (r) { return { site: r[0], products: r[1] }; });
+    }).catch(function () { return null; });
+  }
 
   // ---------- products: Google Sheet (CSV) with a built-in fallback ----------
   function parseCSV(text) {
@@ -72,11 +104,12 @@
 
   function kindOf(p) {
     var s = (p.status || "").toLowerCase();
+    if (s === "hidden" || s.indexOf("隱藏") >= 0) return "hidden";
     if (s.indexOf("售罄") >= 0 || s.indexOf("sold") >= 0) return "sold";
     if (s.indexOf("門市") >= 0 || s.indexOf("store") >= 0) return "store";
     return "ok";
   }
-  function imgSrc(v) { return /^(https?:)?\/\//.test(v) || v.charAt(0) === "/" ? v : "images/" + v; }
+  function imgSrc(v) { return /^(https?:)?\/\//.test(v) || v.charAt(0) === "/" || /^data:image\/(jpeg|png|webp);base64,/.test(v) ? v : "images/" + v; }
 
   function loadProducts() {
     var fallback = function () { return (S.defaultProducts || []).slice(); };
@@ -171,14 +204,12 @@
 
   // Orders go to the shop's own Firebase database (viewed on /admin).
   // If Firebase is not set up, an optional Formspree link in settings.js is used instead.
-  var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
   function sendOrder(o) {
     if (window.FIREBASE_CONFIG) {
-      return Promise.all([import(FB + "firebase-app.js"), import(FB + "firebase-firestore.js")]).then(function (m) {
-        var db = m[1].getFirestore(m[0].initializeApp(window.FIREBASE_CONFIG));
-        return m[1].addDoc(m[1].collection(db, "orders"), {
+      return getDb().then(function (c) {
+        return c.fs.addDoc(c.fs.collection(c.db, "orders"), {
           orderNo: o.orderNo, name: o.name, contact: o.contact, delivery: o.delivery, address: o.address, notes: o.notes,
-          items: o.items, total: o.total, status: "new", createdAt: m[1].serverTimestamp()
+          items: o.items, total: o.total, status: "new", createdAt: c.fs.serverTimestamp()
         });
       });
     }
@@ -232,16 +263,29 @@
     form.reset(); renderItems(); syncDelivery(); $("#done").hidden = true; form.hidden = false;
   });
 
-  // form switched off until orders have somewhere to go
-  if (!window.FIREBASE_CONFIG && !S.formEndpoint) {
-    $("#closed").hidden = false; form.hidden = true;
+  // The order form is switched off until orders have somewhere to go, or while the shop has closed it on the admin page.
+  function syncOrderForm() {
+    var off = (!window.FIREBASE_CONFIG && !S.formEndpoint) || S.ordersOpen === false;
+    $("#closed").hidden = !off; form.hidden = off || !$("#done").hidden;
     $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; });
   }
+  syncOrderForm();
+
+  function emptyShelf() { return '<p class="loading" id="empty-shelf">暫時未有商品。</p>'; }
 
   renderDelivery();
-  loadProducts().then(function (list) {
-    products = list;
+  loadRemote().then(function (remote) {
+    if (remote && remote.site) {
+      SITE_KEYS.forEach(function (k) { if (remote.site[k] !== undefined && remote.site[k] !== "") S[k] = remote.site[k]; });
+      if (remote.site.ordersOpen === false) S.ordersOpen = false;
+      bindSettings(); syncOrderForm();
+    }
+    if (remote && remote.products && remote.products.length) return remote.products;
+    return loadProducts();
+  }).then(function (list) {
+    products = list.filter(function (p) { return kindOf(p) !== "hidden"; });
     $("#loading").hidden = true;
     renderChips(); renderCards(); renderItems();
+    if (!products.length) $("#grid").innerHTML = emptyShelf();
   });
 })();
