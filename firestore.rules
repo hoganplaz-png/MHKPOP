@@ -5,6 +5,7 @@ rules_version = '2';
 //    the document name, so it can never be overwritten) and read only their own orders.
 //    Only the shop admin (signed in with the admin email) can read all orders or change a status. Nobody can delete.
 //  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
+//  - Purchases, sales and expenses (the shop-management pages): only the admin can read or write them.
 //  - Products, payment methods, website text and wording: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
@@ -130,6 +131,52 @@ service cloud.firestore {
         && request.resource.data.t is map
         && request.resource.data.t.size() <= 700;
       allow delete: if false;
+    }
+
+    // ---- Shop management (admin page only): bulk orders / costs, sales records, rent and other costs ----
+    function validPurchase() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['date', 'supplier', 'currency', 'rate', 'shipping', 'otherFees', 'allocate', 'note', 'lines', 'updatedAt'])
+        && d.keys().hasAll(['date', 'currency', 'rate', 'shipping', 'otherFees', 'allocate', 'lines'])
+        && d.date is string && d.date.size() == 10
+        && optStr(d, 'supplier', 100) && optStr(d, 'note', 500)
+        && d.currency in ['HKD', 'KRW', 'CNY', 'USD', 'JPY', 'TWD', 'EUR']
+        && d.rate is number && d.shipping is number && d.otherFees is number
+        && d.allocate in ['qty', 'value']
+        && d.lines is list && d.lines.size() <= 80;
+    }
+    function validSale() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['date', 'time', 'receipt', 'payment', 'source', 'items', 'total', 'discount', 'note', 'orderNo', 'createdAt'])
+        && d.keys().hasAll(['date', 'source', 'items', 'total'])
+        && d.date is string && d.date.size() == 10
+        && d.source in ['pos', 'import', 'web']
+        && d.items is list && d.items.size() <= 150
+        && d.total is number
+        && optStr(d, 'time', 10) && optStr(d, 'receipt', 60) && optStr(d, 'payment', 30) && optStr(d, 'note', 300) && optStr(d, 'orderNo', 30);
+    }
+    function validExpense() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['date', 'name', 'category', 'amount', 'repeat', 'endDate', 'note'])
+        && d.keys().hasAll(['date', 'name', 'category', 'amount', 'repeat'])
+        && d.date is string && d.date.size() == 10
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && d.category in ['rent', 'other']
+        && d.amount is number
+        && d.repeat in ['none', 'monthly', 'yearly']
+        && optStr(d, 'endDate', 10) && optStr(d, 'note', 300);
+    }
+    match /purchases/{id} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin() && validPurchase();
+    }
+    match /sales/{id} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin() && validSale();
+    }
+    match /expenses/{id} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin() && validExpense();
     }
 
     match /orders/{orderId} {

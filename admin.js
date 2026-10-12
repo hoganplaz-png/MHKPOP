@@ -1,8 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, setDoc, writeBatch
+  getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, setDoc, writeBatch, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+import { setupShop } from "./shop.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
@@ -27,6 +29,11 @@ if (!cfg) {
   let editingPay = null, payPhoto = "";
   let photo = "";          // data URL of the photo in the product form
   let siteDirty = false;
+  const shop = setupShop({
+    db, $, esc, notice,
+    fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp },
+    getOrders: () => orders, getWebProducts: () => products
+  });
 
   // ---------- sign in / out ----------
   const stopAll = () => { unsubs.forEach((u) => u()); unsubs = []; };
@@ -36,7 +43,7 @@ if (!cfg) {
   };
 
   onAuthStateChanged(auth, (user) => {
-    stopAll(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
+    stopAll(); shop.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
     if (!user) {
       $("#login").hidden = false; $("#app").hidden = true; $("#who").hidden = true;
       return;
@@ -44,8 +51,9 @@ if (!cfg) {
     $("#login").hidden = true; $("#app").hidden = false; $("#who").hidden = false;
     $("#who-email").textContent = user.email;
     notice("");
+    shop.start();
     unsubs.push(onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")),
-      (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); }, denied));
+      (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); shop.ordersChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
       (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "proofs"), orderBy("createdAt", "desc")),

@@ -19,6 +19,18 @@ Sign in with the admin email and the password you set in Firebase Authentication
 Photos are shrunk automatically in your browser and saved with the product.
 The names of the delivery choices (順豐到付, 門市自取) can be changed in the **全部文字** tab. Which products can use which choice follows the product settings: 順豐 needs every chosen album to be 可寄順豐; 門市自取 needs every chosen album to be 格仔舖現貨 or 訂購.
 
+## Shop management (admin page, second row of tabs)
+| Tab | What it does |
+|---|---|
+| **收銀** (POS) | Tap albums to build a sale, edit the price, give a discount, pick the payment method, press 完成銷售. Stock goes down automatically and the sale is saved with the cost of the albums sold |
+| **銷售紀錄** (Sales) | Paste the sales record from One POS and press 辨識: it finds the date, receipt number, items, quantity, price and payment method, splits it into sales, matches the items to your stock, and lets you check and correct before saving. Pasting the same record again never doubles it. Also lists website orders that are confirmed but not yet counted as sales |
+| **進貨及成本** (Purchases and costs) | One card per bulk order: albums, quantity, price paid, selling price, plus shipping and other fees in any currency (with exchange rate). Shipping is spread over the albums (equally, or by value) to give the **cost per album**. Edit anything, any time: costs, profit and margins update everywhere. Selling price and stock left can be edited right in the table |
+| **租金及開支** (Rent and costs) | Monthly rent and any other cost (one-off, monthly or yearly). Rent is spread by day, so any period gets the right share |
+| **利潤** (Profit) | Today, yesterday, this week, this month, last month, this year, all time, or your own dates: revenue, cost of goods, gross profit, rent and costs, net profit, profit per album and per day. CSV export |
+
+Profit uses the *current* cost of each batch, so correcting a shipping fee or price in 進貨及成本 corrects the profit of the albums already sold. Sales that cannot be matched to a purchase are flagged and left out of the cost until you fix them.
+The shop-management data (`purchases`, `sales`, `expenses`) can only be read or changed by the admin email.
+
 ## How ordering and payment work
 0. The customer creates an account (email and password; a verification email is sent) or signs in. The order form is only shown to signed-in customers. Accounts are managed in Firebase console, Authentication, where you can also disable or delete one.
 1. The customer fills in the order form, ticks the box to agree to the Terms and Privacy Policy, and taps **核對訂單**.
@@ -59,6 +71,7 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 - `account.js`: customer sign-up and sign-in. `fb.js`: loads Firebase. `texts.js`: the editable-wording system
 - `pay.html`, `pay.js`, `pay.css`: the payment page
 - `terms.html`, `privacy.html`, `legal.css`, `legal.js`: Terms of Service and Privacy Policy
+- `shop.js`, `shoplib.js`: the shop-management pages and their calculations (costs, stock, profit, POS-text reader)
 - `admin.html`, `admin.js`, `admin.css`: the admin page
 - `settings.js`: fallback shop details and delivery choices (used until you save text on the admin page)
 - `firestore.rules`, `firebase.json`, `rules-manual.txt`, `admin-email.txt`: Firebase setup

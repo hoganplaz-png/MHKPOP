@@ -44,6 +44,14 @@
         <button type="button" role="tab" class="tab" id="t-site" data-tab="site" aria-selected="false" aria-controls="p-site">網站內容</button>
         <button type="button" role="tab" class="tab" id="t-texts" data-tab="texts" aria-selected="false" aria-controls="p-texts">全部文字</button>
       </div>
+      <div class="tabs tabs-shop" role="tablist" aria-label="店舖管理">
+        <span class="tabs-label">店舖管理</span>
+        <button type="button" role="tab" class="tab" id="t-pos" data-tab="pos" aria-selected="false" aria-controls="p-pos">收銀</button>
+        <button type="button" role="tab" class="tab" id="t-sales" data-tab="sales" aria-selected="false" aria-controls="p-sales">銷售紀錄</button>
+        <button type="button" role="tab" class="tab" id="t-purchases" data-tab="purchases" aria-selected="false" aria-controls="p-purchases">進貨及成本</button>
+        <button type="button" role="tab" class="tab" id="t-expenses" data-tab="expenses" aria-selected="false" aria-controls="p-expenses">租金及開支</button>
+        <button type="button" role="tab" class="tab" id="t-profit" data-tab="profit" aria-selected="false" aria-controls="p-profit">利潤</button>
+      </div>
 
       <!-- 訂單 -->
       <section id="p-orders" role="tabpanel" aria-labelledby="t-orders">
@@ -121,6 +129,116 @@
             <span class="saving" id="site-saved" aria-live="polite"></span>
           </div>
         </form>
+      </section>
+
+
+      <!-- 收銀 -->
+      <section id="p-pos" role="tabpanel" aria-labelledby="t-pos" hidden>
+        <div class="pos">
+          <div class="pos-left">
+            <label class="sr" for="pos-search">搜尋商品</label>
+            <input id="pos-search" class="field" type="search" placeholder="搜尋商品或組合…">
+            <p class="hint" id="pos-hint">按商品加入本單。商品來自「進貨及成本」，售價和庫存會自動帶入。</p>
+            <div class="pos-grid" id="pos-products"></div>
+            <button type="button" class="btn btn-line" id="pos-custom">＋ 其他項目（手動輸入）</button>
+          </div>
+          <div class="pos-right">
+            <h2>本單</h2>
+            <div id="pos-cart" class="pos-cart"></div>
+            <div class="pos-line"><label for="pos-discount">折扣（HK$）</label><input id="pos-discount" class="field" type="number" min="0" step="any" inputmode="decimal" value="0"></div>
+            <div class="pos-total"><span>應收</span><b id="pos-total">HK$0</b></div>
+            <div class="pos-line"><label for="pos-payment">付款方式</label>
+              <select id="pos-payment" class="field"><option>現金</option><option>PayMe</option><option>支付寶</option><option>轉數快</option><option>八達通</option><option>信用卡</option><option>其他</option></select></div>
+            <div class="pos-line"><label for="pos-date">日期</label><input id="pos-date" class="field" type="date"></div>
+            <div class="pos-line"><label for="pos-note">備註（選填）</label><input id="pos-note" class="field" type="text" maxlength="200"></div>
+            <p class="error" id="pos-error" role="alert" hidden></p>
+            <div class="dlg-actions"><button type="button" class="btn btn-solid btn-lg" id="pos-done">完成銷售</button><button type="button" class="btn btn-line" id="pos-clear">清除本單</button></div>
+            <p class="saving" id="pos-msg" aria-live="polite"></p>
+          </div>
+        </div>
+        <h2 class="sec">今日銷售</h2>
+        <div id="pos-today"></div>
+      </section>
+
+      <!-- 銷售紀錄 -->
+      <section id="p-sales" role="tabpanel" aria-labelledby="t-sales" hidden>
+        <details class="card-box" id="imp-box" open>
+          <summary>貼上 One POS 銷售紀錄（自動辨識及分單）</summary>
+          <p class="hint">在 One POS 複製銷售紀錄（任何日期都可以），貼在下面，按「辨識」。系統會自動分辨日期、單號、貨品、數量、金額和付款方式，並按單分開，再配對到「進貨及成本」的貨品，自動扣減庫存和計算利潤。已記錄過的單不會重複加入。</p>
+          <label for="imp-text" class="sr">POS 銷售紀錄</label>
+          <textarea id="imp-text" class="field" rows="7" placeholder="在這裡貼上 One POS 的銷售紀錄…"></textarea>
+          <div class="imp-opts">
+            <label for="imp-date">紀錄沒有日期時使用</label><input id="imp-date" class="field" type="date">
+            <label for="imp-free">純文字單據的金額代表</label>
+            <select id="imp-free" class="field"><option value="amount">該項小計</option><option value="unit">每件單價</option></select>
+          </div>
+          <div class="dlg-actions"><button type="button" class="btn btn-solid" id="imp-parse">辨識</button><button type="button" class="btn btn-line" id="imp-clear">清除</button></div>
+          <div id="imp-result"></div>
+        </details>
+
+        <div id="web-box" class="card-box" hidden>
+          <h3>網站訂單未入帳</h3>
+          <p class="hint">已確認／已完成的網站訂單，可以加入銷售紀錄，一併計算庫存和利潤（運費由客人付給順豐，不計入）。</p>
+          <div id="web-list"></div>
+          <div class="dlg-actions"><button type="button" class="btn btn-solid" id="web-add">全部加入銷售紀錄</button></div>
+        </div>
+
+        <div class="tools">
+          <div class="tools-right wide">
+            <label for="sl-from" class="sr">由</label><input id="sl-from" class="field" type="date">
+            <label for="sl-to" class="sr">至</label><input id="sl-to" class="field" type="date">
+            <label for="sl-search" class="sr">搜尋</label><input id="sl-search" class="field" type="search" placeholder="搜尋單號、貨品、付款方式">
+            <button type="button" class="btn btn-line" id="sl-csv">匯出 CSV</button>
+          </div>
+        </div>
+        <div class="chips" id="sl-chips" role="group" aria-label="日期範圍"></div>
+        <p class="empty" id="sl-empty" hidden>這段時間沒有銷售紀錄。</p>
+        <div id="sl-list"></div>
+      </section>
+
+      <!-- 進貨及成本 -->
+      <section id="p-purchases" role="tabpanel" aria-labelledby="t-purchases" hidden>
+        <div class="tools">
+          <p class="hint">每次入貨記錄一張進貨單：貨品、數量、進貨單價，再加運費和其他費用。系統會把運費和費用攤入每件貨品，自動計出「每件成本」。可以隨時修改，成本和利潤會即時更新。</p>
+          <div class="tools-right">
+            <label class="sr" for="pu-search">搜尋進貨單</label>
+            <input id="pu-search" class="field" type="search" placeholder="搜尋貨品或供應商">
+            <button type="button" class="btn btn-solid" id="pu-add">新增進貨單</button>
+          </div>
+        </div>
+        <div class="stat-row" id="pu-stats"></div>
+        <p class="empty" id="pu-empty" hidden>未有進貨單。按「新增進貨單」。</p>
+        <div id="pu-list"></div>
+      </section>
+
+      <!-- 租金及開支 -->
+      <section id="p-expenses" role="tabpanel" aria-labelledby="t-expenses" hidden>
+        <div class="tools">
+          <p class="hint">租金按月計，利潤報告會按日數自動分攤。其他開支（包裝、車資、雜費、員工…）可以記一次，或設定每月／每年重複。</p>
+          <div class="tools-right">
+            <button type="button" class="btn btn-line" id="ex-add-rent">＋ 租金</button>
+            <button type="button" class="btn btn-solid" id="ex-add">＋ 其他開支</button>
+          </div>
+        </div>
+        <h2 class="sec">租金</h2>
+        <p class="empty" id="ex-rent-empty" hidden>未有租金紀錄。按「＋ 租金」輸入每月租金。</p>
+        <div id="ex-rent"></div>
+        <h2 class="sec">其他開支</h2>
+        <p class="empty" id="ex-other-empty" hidden>未有其他開支。</p>
+        <div id="ex-other"></div>
+      </section>
+
+      <!-- 利潤 -->
+      <section id="p-profit" role="tabpanel" aria-labelledby="t-profit" hidden>
+        <div class="tools">
+          <div class="chips" id="pr-chips" role="group" aria-label="期間"></div>
+          <div class="tools-right wide">
+            <label for="pr-from" class="sr">由</label><input id="pr-from" class="field" type="date">
+            <label for="pr-to" class="sr">至</label><input id="pr-to" class="field" type="date">
+            <button type="button" class="btn btn-line" id="pr-csv">匯出貨品利潤 CSV</button>
+          </div>
+        </div>
+        <div id="pr-body"></div>
       </section>
 
       <!-- 全部文字 -->
@@ -241,6 +359,84 @@
         <button type="button" class="btn btn-danger" id="pm-delete-yes">確定刪除</button>
         <button type="button" class="btn btn-line" id="pm-delete-no">不刪除</button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- 進貨單 -->
+  <dialog id="bdlg" aria-labelledby="bdlg-title" class="wide-dlg">
+    <form id="bform" method="dialog">
+      <h2 id="bdlg-title">新增進貨單</h2>
+      <div class="grid2">
+        <div><label for="b-date">進貨日期</label><input id="b-date" class="field" type="date" required></div>
+        <div><label for="b-supplier">供應商／備註名稱</label><input id="b-supplier" class="field" type="text" maxlength="100" placeholder="例如 韓國批發、10月第二批"></div>
+      </div>
+      <div class="grid2">
+        <div><label for="b-currency">貨幣</label>
+          <select id="b-currency" class="field"><option value="HKD">港幣 HKD</option><option value="KRW">韓圜 KRW</option><option value="CNY">人民幣 CNY</option><option value="USD">美元 USD</option><option value="JPY">日圓 JPY</option><option value="TWD">新台幣 TWD</option><option value="EUR">歐元 EUR</option></select></div>
+        <div id="b-rate-wrap" hidden><label for="b-rate">匯率（1 單位 = 港幣）</label><input id="b-rate" class="field" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 韓圜 0.0058"></div>
+      </div>
+      <h3 class="sub">貨品</h3>
+      <datalist id="prodnames"></datalist>
+      <div id="b-lines"></div>
+      <button type="button" class="btn btn-line" id="b-addline">＋ 新增一行</button>
+      <h3 class="sub">運費及其他費用（整張進貨單，用上面的貨幣）</h3>
+      <div class="grid2">
+        <div><label for="b-ship">運費</label><input id="b-ship" class="field" type="number" min="0" step="any" inputmode="decimal" value="0"></div>
+        <div><label for="b-other">其他費用（稅項、手續費…）</label><input id="b-other" class="field" type="number" min="0" step="any" inputmode="decimal" value="0"></div>
+      </div>
+      <label for="b-alloc">運費及費用怎樣攤到每件貨品</label>
+      <select id="b-alloc" class="field"><option value="qty">按件數平均（每件分到一樣）</option><option value="value">按貨品金額比例（貴的貨分多啲）</option></select>
+      <label for="b-note">備註（選填）</label>
+      <input id="b-note" class="field" type="text" maxlength="400">
+      <div class="calc-box" id="b-summary" aria-live="polite"></div>
+      <p class="error" id="b-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="b-save">儲存</button>
+        <button type="button" class="btn btn-line" id="b-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="b-delete" hidden>刪除進貨單</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 租金／開支 -->
+  <dialog id="edlg" aria-labelledby="edlg-title">
+    <form id="eform" method="dialog">
+      <h2 id="edlg-title">新增開支</h2>
+      <label for="e-cat">類別</label>
+      <select id="e-cat" class="field"><option value="rent">租金（每月）</option><option value="other">其他開支</option></select>
+      <label for="e-name">項目名稱</label>
+      <input id="e-name" class="field" type="text" maxlength="100" placeholder="例如 包裝材料、車資、員工薪金">
+      <div class="grid2">
+        <div><label for="e-amount">金額（HK$）</label><input id="e-amount" class="field" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="e-date" id="e-date-label">日期</label><input id="e-date" class="field" type="date"></div>
+      </div>
+      <div id="e-repeat-wrap">
+        <label for="e-repeat">重複</label>
+        <select id="e-repeat" class="field"><option value="none">只此一次</option><option value="monthly">每月</option><option value="yearly">每年</option></select>
+      </div>
+      <div id="e-end-wrap" hidden><label for="e-end">到（可留空，表示一直持續）</label><input id="e-end" class="field" type="date"></div>
+      <label for="e-note">備註（選填）</label>
+      <input id="e-note" class="field" type="text" maxlength="250">
+      <p class="error" id="e-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="e-save">儲存</button>
+        <button type="button" class="btn btn-line" id="e-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="e-delete" hidden>刪除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 手動項目 -->
+  <dialog id="cdlg" aria-labelledby="cdlg-title">
+    <form id="cform" method="dialog">
+      <h2 id="cdlg-title">其他項目</h2>
+      <label for="c-name">項目名稱</label><input id="c-name" class="field" type="text" maxlength="100" required>
+      <div class="grid2">
+        <div><label for="c-price">售價（HK$）</label><input id="c-price" class="field" type="number" step="any" inputmode="decimal" required></div>
+        <div><label for="c-cost">成本（HK$，選填）</label><input id="c-cost" class="field" type="number" min="0" step="any" inputmode="decimal"></div>
+      </div>
+      <p class="hint">沒有進貨紀錄的東西（例如周邊、包裝）可以在這裡手動輸入；填了成本才會計入利潤。</p>
+      <div class="dlg-actions"><button type="submit" class="btn btn-solid">加入本單</button><button type="button" class="btn btn-line" id="c-cancel">取消</button></div>
     </form>
   </dialog>
 
