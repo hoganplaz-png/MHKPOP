@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>付款 · MHKPOP</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="pay.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <a class="btn btn-line" href="/">返回網站</a>
+    </div>
+  </header>
+
+  <main class="wrap pay">
+    <section id="missing" hidden>
+      <h1>找不到訂單</h1>
+      <p class="lead">這個頁面需要在落單後開啟。請回到網站填寫落單表格。</p>
+      <p><a class="btn btn-solid" href="/#order">前往落單表格</a></p>
+    </section>
+
+    <section id="pay" hidden>
+      <p class="caps kicker" id="pay-no"></p>
+      <h1>請付款 <span id="pay-amount"></span></h1>
+      <p class="lead">你的訂單已收到。請選擇付款方式，並在付款備註寫上訂單編號。</p>
+
+      <div class="ref">
+        <div><small>訂單編號</small><b id="ref-no"></b></div>
+        <button type="button" class="btn btn-line" data-copy="no">複製訂單編號</button>
+        <div><small>付款金額</small><b id="ref-amount"></b></div>
+      </div>
+
+      <h2>選擇付款方式</h2>
+      <div class="methods" id="methods" role="group" aria-label="付款方式"></div>
+      <div class="panel" id="panel" aria-live="polite"></div>
+
+      <p class="note" id="pay-note"></p>
+      <details class="order-sum" id="order-sum" hidden>
+        <summary>查看訂單內容</summary>
+        <div class="summary" id="sum-body"></div>
+      </details>
+      <p class="hint">遇到問題？請在 Instagram 私訊 <a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a>（請用文字訊息，並附上訂單編號）。</p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="pay.js"></script>
+</body>
+</html>

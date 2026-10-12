@@ -40,6 +40,7 @@
       <div class="tabs" role="tablist" aria-label="管理選單">
         <button type="button" role="tab" class="tab" id="t-orders" data-tab="orders" aria-selected="true" aria-controls="p-orders">訂單 <span class="count" id="c-orders"></span></button>
         <button type="button" role="tab" class="tab" id="t-products" data-tab="products" aria-selected="false" aria-controls="p-products">商品</button>
+        <button type="button" role="tab" class="tab" id="t-payments" data-tab="payments" aria-selected="false" aria-controls="p-payments">付款方式</button>
         <button type="button" role="tab" class="tab" id="t-site" data-tab="site" aria-selected="false" aria-controls="p-site">網站內容</button>
       </div>
 
@@ -70,6 +71,19 @@
         <div class="products" id="products"></div>
       </section>
 
+      <!-- 付款方式 -->
+      <section id="p-payments" role="tabpanel" aria-labelledby="t-payments" hidden>
+        <div class="tools">
+          <p class="hint">客人確認訂單後，會看到這些付款方式。關閉的付款方式不會顯示。</p>
+          <div class="tools-right">
+            <button type="button" class="btn btn-line" id="import-pay" hidden>匯入 PayMe 及支付寶</button>
+            <button type="button" class="btn btn-solid" id="add-pay">新增付款方式</button>
+          </div>
+        </div>
+        <p class="empty" id="empty-pay" hidden>未有付款方式。按「匯入 PayMe 及支付寶」使用已設定的二維碼，或按「新增付款方式」。</p>
+        <div class="products" id="payments"></div>
+      </section>
+
       <!-- 網站內容 -->
       <section id="p-site" role="tabpanel" aria-labelledby="t-site" hidden>
         <form class="site-form" id="site-form">
@@ -95,6 +109,8 @@
           </div>
           <label for="s-enquiryNote">查詢須知</label>
           <input id="s-enquiryNote" class="field" type="text">
+          <label for="s-paymentNote">付款頁面備註（顯示在付款方式下面）</label>
+          <textarea id="s-paymentNote" class="field" rows="3"></textarea>
           <label for="s-claims">店舖簡介（商業登記、營運年期等）</label>
           <input id="s-claims" class="field" type="text">
           <p class="error" id="site-error" role="alert" hidden></p>
@@ -144,6 +160,53 @@
         <p>確定要刪除這個商品嗎？刪除後無法還原。如只想暫時不顯示，可改為「隱藏」。</p>
         <button type="button" class="btn btn-danger" id="p-delete-yes">確定刪除</button>
         <button type="button" class="btn btn-line" id="p-delete-no">不刪除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 付款方式表單 -->
+  <dialog id="pmdlg" aria-labelledby="pmdlg-title">
+    <form id="pmform" method="dialog">
+      <h2 id="pmdlg-title">新增付款方式</h2>
+      <label for="pm-name">名稱（例如 PayMe、轉數快、PayPal）</label>
+      <input id="pm-name" class="field" type="text" maxlength="40" required>
+      <label for="pm-type">類型</label>
+      <select id="pm-type" class="field">
+        <option value="qr">二維碼（客人掃描）</option>
+        <option value="text">文字資料（例如轉數快號碼、銀行戶口，可複製）</option>
+        <option value="link">付款連結（例如 PayPal.me、Stripe 付款連結）</option>
+      </select>
+      <label for="pm-details">付款說明 / 付款資料</label>
+      <textarea id="pm-details" class="field" rows="4" maxlength="600"></textarea>
+      <div id="pm-link-wrap" hidden>
+        <label for="pm-link">付款連結（必須以 https:// 開頭）</label>
+        <input id="pm-link" class="field" type="url" maxlength="300" placeholder="https://paypal.me/你的名稱/{amount}HKD">
+        <p class="hint">連結內可用 {amount} 代表訂單金額，{order} 代表訂單編號，會自動填入。</p>
+      </div>
+      <div id="pm-photo-wrap">
+        <label for="pm-photo">二維碼圖片</label>
+        <div class="photo-row">
+          <div class="preview" id="pm-preview" aria-hidden="true"></div>
+          <div class="photo-actions">
+            <input id="pm-photo" type="file" accept="image/*">
+            <button type="button" class="btn btn-line" id="pm-photo-remove" hidden>移除圖片</button>
+          </div>
+        </div>
+      </div>
+      <div class="toggle-row" style="margin-top:14px">
+        <input id="pm-enabled" type="checkbox" checked>
+        <label for="pm-enabled"><b>在付款頁面顯示</b></label>
+      </div>
+      <p class="error" id="pm-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="pm-save">儲存</button>
+        <button type="button" class="btn btn-line" id="pm-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="pm-delete" hidden>刪除</button>
+      </div>
+      <div class="confirm" id="pm-confirm" hidden>
+        <p>確定要刪除這個付款方式嗎？如只想暫時不顯示，可取消勾選「在付款頁面顯示」。</p>
+        <button type="button" class="btn btn-danger" id="pm-delete-yes">確定刪除</button>
+        <button type="button" class="btn btn-line" id="pm-delete-no">不刪除</button>
       </div>
     </form>
   </dialog>

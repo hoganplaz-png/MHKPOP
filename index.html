@@ -140,17 +140,10 @@
             <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="_gotcha" type="text" tabindex="-1" autocomplete="off"></div>
 
             <p class="error" id="error" role="alert" hidden></p>
-            <button class="btn btn-solid btn-lg" type="submit" id="submit">提交訂單</button>
-            <p class="hint">提交後我們會確認貨量，再告知付款方法。查詢請用文字訊息，本店不接受語音訊息。</p>
+            <button class="btn btn-solid btn-lg" type="submit" id="submit">核對訂單</button>
+            <p class="hint">按「核對訂單」確認內容後，會開啟付款頁面。查詢請用文字訊息，本店不接受語音訊息。</p>
           </form>
 
-          <div class="done" id="done" hidden>
-            <p class="caps kicker" id="done-no"></p>
-            <h3>已收到你的訂單</h3>
-            <p class="lead">我們會用你留下的聯絡方式（<span id="done-contact"></span>）確認貨量，並告知付款方法。</p>
-            <div class="summary" id="summary"></div>
-            <button class="btn btn-line" type="button" id="again">再填一張表格</button>
-          </div>
         </div>
       </div>
     </section>
@@ -189,6 +182,18 @@
       <span>韓國 K-POP 專輯專賣店 · 將軍澳</span>
     </div>
   </footer>
+
+  <dialog class="review" id="review" aria-labelledby="review-title">
+    <h3 id="review-title">請核對訂單</h3>
+    <div class="summary" id="review-summary"></div>
+    <dl class="review-info" id="review-info"></dl>
+    <p class="error" id="review-error" role="alert" hidden></p>
+    <div class="review-actions">
+      <button class="btn btn-line" type="button" id="review-back">返回修改</button>
+      <button class="btn btn-solid" type="button" id="review-ok">確認訂單，前往付款</button>
+    </div>
+    <p class="hint">確認後訂單會送出，並開啟付款頁面。</p>
+  </dialog>
 
   <noscript><p style="padding:16px;text-align:center">請開啟 JavaScript 以查看價目和使用落單表格。</p></noscript>
   <script src="settings.js"></script>

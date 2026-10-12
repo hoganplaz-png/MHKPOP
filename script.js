@@ -239,34 +239,46 @@
       d.pickup ? "" : "地址：" + address, "貨品：\n" + itemsText, "貨品總額（未計運費）：" + money(total),
       notes ? "備註：" + notes : ""].filter(Boolean).join("\n");
 
-    var btn = $("#submit"); btn.disabled = true; btn.textContent = "提交中…";
     var order = { orderNo: orderNo, name: name, contact: contact, delivery: d.name, address: d.pickup ? "" : address, notes: notes,
       items: list.map(function (x) { return { group: x.p.group, name: x.p.name, price: x.p.price, qty: x.q }; }), total: total, text: text };
-    sendOrder(order).then(function () {
-      showDone(orderNo, contact, list, total, d);
-    }).catch(function () {
-      showError("提交失敗。請檢查網絡後再試，或在 Instagram 私訊 @" + S.instagram + "。");
-    }).then(function () { btn.disabled = false; btn.textContent = "提交訂單"; });
+    pending = order;
+    openReview(order);
   });
 
-  function showDone(orderNo, contact, list, total, d) {
-    $("#done-no").textContent = "訂單編號 " + orderNo;
-    $("#done-contact").textContent = contact;
-    $("#summary").innerHTML = list.map(function (x) {
-      return "<div><span>" + esc(x.p.name) + " × " + x.q + "</span><span>" + money(x.p.price * x.q) + "</span></div>";
-    }).join("") + '<div class="tot"><span>貨品總額（未計運費）</span><span>' + money(total) + "</span></div>" +
-      '<div class="meta"><span>交收：' + esc(d.name) + "</span><span></span></div>";
-    form.hidden = true; $("#done").hidden = false;
-    $("#order").scrollIntoView({ behavior: "smooth", block: "start" });
+  // Step 2: the customer checks the order, then confirms. Confirming saves the order and opens the payment page.
+  var pending = null, review = $("#review");
+  function openReview(o) {
+    $("#review-summary").innerHTML = o.items.map(function (i) {
+      return "<div><span>" + esc(i.group) + " " + esc(i.name) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>";
+    }).join("") + '<div class="tot"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>";
+    var rows = [["姓名", o.name], ["聯絡方式", o.contact], ["交收方式", o.delivery]];
+    if (o.address) rows.push(["收件地址", o.address]);
+    if (o.notes) rows.push(["備註", o.notes]);
+    $("#review-info").innerHTML = rows.map(function (r) { return "<div><dt>" + r[0] + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("");
+    $("#review-error").hidden = true;
+    review.showModal();
   }
-  $("#again").addEventListener("click", function () {
-    form.reset(); renderItems(); syncDelivery(); $("#done").hidden = true; form.hidden = false;
+  $("#review-back").addEventListener("click", function () { review.close(); });
+  $("#review-ok").addEventListener("click", function () {
+    if (!pending) return;
+    var btn = this, o = pending;
+    btn.disabled = true; btn.textContent = "提交中…";
+    sendOrder(o).then(function () {
+      try {
+        sessionStorage.setItem("mh-order", JSON.stringify({ orderNo: o.orderNo, total: o.total, contact: o.contact, delivery: o.delivery, items: o.items }));
+      } catch (e) { /* the payment page also reads the order number and amount from the address */ }
+      location.href = "pay.html?o=" + encodeURIComponent(o.orderNo) + "&t=" + o.total;
+    }).catch(function () {
+      review.close();
+      showError("提交失敗。請檢查網絡後再試，或在 Instagram 私訊 @" + S.instagram + "。");
+      btn.disabled = false; btn.textContent = "確認訂單，前往付款";
+    });
   });
 
   // The order form is switched off until orders have somewhere to go, or while the shop has closed it on the admin page.
   function syncOrderForm() {
     var off = (!window.FIREBASE_CONFIG && !S.formEndpoint) || S.ordersOpen === false;
-    $("#closed").hidden = !off; form.hidden = off || !$("#done").hidden;
+    $("#closed").hidden = !off; form.hidden = off;
     $$("[data-s-ig]").forEach(function (a) { a.href = igUrl; });
   }
   syncOrderForm();

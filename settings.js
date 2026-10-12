@@ -33,6 +33,16 @@ window.SETTINGS = {
   intro: "睇價目，填寫落單表格，我們確認貨量後再聯絡你。可選順豐到付，或到將軍澳門市自取。",
   shelfNote: "價錢為港幣。售完即止，不設預留。",
 
+  // ---------- 5a. 付款頁面 PAYMENT PAGE ----------
+  // After the customer confirms the order, the website opens a payment page.
+  // Add, change or switch off payment methods on the admin page (付款方式 tab).
+  // These two are used until you save your own list there.
+  paymentNote: "付款時請在備註寫上訂單編號。付款後請將付款截圖連同訂單編號傳到 Instagram，我們收款後會確認訂單。",
+  defaultPayments: [
+    { name: "PayMe", type: "qr", image: "assets/payme-qr.jpg", details: "打開 PayMe，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
+    { name: "支付寶 Alipay", type: "qr", image: "assets/alipay-qr.jpg", details: "打開支付寶，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
+  ],
+
   // ---------- 5. 交收方式 DELIVERY ----------
   // Shown in the order form. "pickup: true" means no address is needed.
   delivery: [

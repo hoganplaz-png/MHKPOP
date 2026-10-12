@@ -3,7 +3,7 @@ rules_version = '2';
 // Who can do what:
 //  - Orders: anyone visiting the website can ADD a new order (only with the fields below).
 //    Only the shop admin (signed in with the admin email) can read orders or change their status. Nobody can delete.
-//  - Products and website text: anyone can READ them (that is what the website shows).
+//  - Products, payment methods and website text: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -50,10 +50,10 @@ service cloud.firestore {
 
     function validSite() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['headline', 'intro', 'shelfNote', 'hours', 'addressShort', 'addressLines', 'stall', 'enquiryNote', 'claims', 'instagram', 'ordersOpen'])
+      return d.keys().hasOnly(['headline', 'intro', 'shelfNote', 'hours', 'addressShort', 'addressLines', 'stall', 'enquiryNote', 'claims', 'instagram', 'paymentNote', 'ordersOpen'])
         && optStr(d, 'headline', 200) && optStr(d, 'intro', 600) && optStr(d, 'shelfNote', 300)
         && optStr(d, 'hours', 100) && optStr(d, 'addressShort', 150) && optStr(d, 'enquiryNote', 300)
-        && optStr(d, 'claims', 300) && optStr(d, 'instagram', 60)
+        && optStr(d, 'claims', 300) && optStr(d, 'instagram', 60) && optStr(d, 'paymentNote', 500)
         && optList(d, 'addressLines') && optList(d, 'stall')
         && (!('ordersOpen' in d) || d.ordersOpen is bool);
     }
@@ -61,6 +61,25 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create, update: if isAdmin() && validProduct();
+      allow delete: if isAdmin();
+    }
+
+    function validPayment() {
+      let d = request.resource.data;
+      let keys = ['name', 'type', 'details', 'link', 'image', 'order', 'enabled'];
+      return d.keys().hasOnly(keys) && d.keys().hasAll(keys)
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 40
+        && d.type in ['qr', 'text', 'link']
+        && d.details is string && d.details.size() <= 600
+        && d.link is string && d.link.size() <= 300 && (d.link == '' || d.link.matches('https://.*'))
+        && d.image is string && d.image.size() <= 400000
+        && d.order is number
+        && d.enabled is bool;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validPayment();
       allow delete: if isAdmin();
     }
 

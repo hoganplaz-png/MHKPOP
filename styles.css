@@ -210,3 +210,13 @@ h2#stall { font-size: clamp(38px, 5.4vw, 76px); line-height: 1.08; letter-spacin
   *, *::before, *::after { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* order review dialog */
+.review { border: 0; border-radius: 20px; padding: clamp(18px, 3vw, 32px); width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 24px); background: var(--cream); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(18, 37, 33, .5); }
+.review::backdrop { background: rgba(18, 37, 33, .55); }
+.review h3 { font-size: 26px; font-weight: 900; margin-bottom: 14px; }
+.review-info { margin: 14px 0 0; display: grid; gap: 10px; }
+.review-info dt { font-size: 12px; color: var(--muted); }
+.review-info dd { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.review .hint { margin-top: 12px; }

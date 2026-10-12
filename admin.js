@@ -19,9 +19,10 @@ if (!cfg) {
   const auth = getAuth(app);
   const db = getFirestore(app);
   const DEFAULTS = window.SETTINGS || {};
-  let orders = [], products = [], site = null, filter = "all";
+  let orders = [], products = [], payments = [], site = null, filter = "all";
   let unsubs = [];
   let editing = null;      // product being edited (object) or null for a new one
+  let editingPay = null, payPhoto = "";
   let photo = "";          // data URL of the photo in the product form
   let siteDirty = false;
 
@@ -33,7 +34,7 @@ if (!cfg) {
   };
 
   onAuthStateChanged(auth, (user) => {
-    stopAll(); orders = []; products = []; site = null; siteDirty = false;
+    stopAll(); orders = []; products = []; payments = []; site = null; siteDirty = false;
     if (!user) {
       $("#login").hidden = false; $("#app").hidden = true; $("#who").hidden = true;
       return;
@@ -45,6 +46,8 @@ if (!cfg) {
       (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
       (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); }, denied));
+    unsubs.push(onSnapshot(query(collection(db, "payments"), orderBy("order")),
+      (snap) => { payments = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); }, denied));
     unsubs.push(onSnapshot(doc(db, "settings", "site"),
       (snap) => { site = snap.exists() ? snap.data() : null; if (!siteDirty) fillSite(); }, denied));
     fillSite();
@@ -197,12 +200,12 @@ if (!cfg) {
     const err = $("#p-error"); err.hidden = true;
     shrink(f).then(setPhoto).catch(() => { err.textContent = "這張相片無法使用，請試另一張。"; err.hidden = false; });
   });
-  function shrink(file) {
+  function shrink(file, maxSide = 800) {
     return new Promise((resolve, reject) => {
       const img = new Image(), url = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(url);
-        const sc = Math.min(1, 800 / Math.max(img.width, img.height));
+        const sc = Math.min(1, maxSide / Math.max(img.width, img.height));
         const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
         const c = document.createElement("canvas"); c.width = w; c.height = h;
         const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
@@ -237,8 +240,108 @@ if (!cfg) {
       .catch(() => { $("#p-error").textContent = "刪除失敗，請再試。"; $("#p-error").hidden = false; });
   });
 
+  // ---------- payment methods ----------
+  const PAY_TYPE = { qr: "二維碼", text: "文字資料", link: "付款連結" };
+  function renderPayments() {
+    $("#empty-pay").hidden = payments.length > 0;
+    $("#import-pay").hidden = payments.length > 0 || !(DEFAULTS.defaultPayments && DEFAULTS.defaultPayments.length);
+    $("#payments").innerHTML = payments.map((m, i) => {
+      const thumb = m.type === "qr" && m.image ? '<img src="' + esc(m.image) + '" alt="">' : "<span>" + esc((m.name || "?").slice(0, 2)) + "</span>";
+      return '<article class="prod' + (m.enabled === false ? " is-hidden" : "") + '" data-id="' + m.id + '">' +
+        '<div class="thumb">' + thumb + "</div>" +
+        '<div class="p-main"><div class="p-group">' + esc(m.name) + '</div><div class="p-meta">' + PAY_TYPE[m.type] + (m.enabled === false ? " · 已關閉" : " · 顯示中") + "</div></div>" +
+        '<div class="p-actions">' +
+        '<button type="button" class="icon" data-act="up" aria-label="向上移" ' + (i === 0 ? "disabled" : "") + ">▲</button>" +
+        '<button type="button" class="icon" data-act="down" aria-label="向下移" ' + (i === payments.length - 1 ? "disabled" : "") + ">▼</button>" +
+        '<button type="button" class="btn btn-line" data-act="edit">編輯</button></div></article>';
+    }).join("");
+  }
+  $("#payments").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]"); const card = e.target.closest(".prod"); if (!b || !card) return;
+    const idx = payments.findIndex((p) => p.id === card.dataset.id); if (idx < 0) return;
+    if (b.dataset.act === "edit") return openPay(payments[idx]);
+    const j = b.dataset.act === "up" ? idx - 1 : idx + 1;
+    if (j < 0 || j >= payments.length) return;
+    const a = payments[idx], c = payments[j], batch = writeBatch(db);
+    batch.update(doc(db, "payments", a.id), { order: c.order });
+    batch.update(doc(db, "payments", c.id), { order: a.order });
+    batch.commit().catch(() => notice("移動失敗，請再試。"));
+  });
+  $("#import-pay").addEventListener("click", async () => {
+    const list = DEFAULTS.defaultPayments || [];
+    try {
+      const batch = writeBatch(db);
+      for (let i = 0; i < list.length; i++) {
+        const m = list[i];
+        let image = "";
+        if (m.image) { image = await urlToDataUrl(m.image); }
+        batch.set(doc(collection(db, "payments")), { name: m.name, type: m.type, details: m.details || "", link: m.link || "", image, order: i + 1, enabled: true });
+      }
+      await batch.commit();
+    } catch (e) { notice("匯入失敗，請確認已發布最新的安全規則。"); }
+  });
+  function urlToDataUrl(url) {
+    return fetch(url).then((r) => r.blob()).then((blob) => shrink(blob, 900));
+  }
+
+  const pmdlg = $("#pmdlg");
+  const setPayPhoto = (v) => {
+    payPhoto = v || "";
+    const pv = $("#pm-preview"); pv.innerHTML = "";
+    if (payPhoto) { const im = document.createElement("img"); im.src = payPhoto; im.alt = ""; pv.appendChild(im); }
+    $("#pm-photo-remove").hidden = !payPhoto;
+  };
+  const syncPayType = () => {
+    const t = $("#pm-type").value;
+    $("#pm-photo-wrap").hidden = t !== "qr"; $("#pm-link-wrap").hidden = t !== "link";
+  };
+  $("#pm-type").addEventListener("change", syncPayType);
+  function openPay(m) {
+    editingPay = m || null;
+    $("#pmdlg-title").textContent = m ? "編輯付款方式" : "新增付款方式";
+    $("#pm-name").value = m ? m.name : ""; $("#pm-type").value = m ? m.type : "qr";
+    $("#pm-details").value = m ? m.details || "" : ""; $("#pm-link").value = m ? m.link || "" : "";
+    $("#pm-enabled").checked = m ? m.enabled !== false : true;
+    $("#pm-photo").value = ""; setPayPhoto(m ? m.image : "");
+    syncPayType();
+    $("#pm-error").hidden = true; $("#pm-delete").hidden = !m; $("#pm-confirm").hidden = true;
+    pmdlg.showModal();
+  }
+  $("#add-pay").addEventListener("click", () => openPay(null));
+  $("#pm-cancel").addEventListener("click", () => pmdlg.close());
+  $("#pm-photo-remove").addEventListener("click", () => { $("#pm-photo").value = ""; setPayPhoto(""); });
+  $("#pm-photo").addEventListener("change", (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const err = $("#pm-error"); err.hidden = true;
+    shrink(f, 900).then(setPayPhoto).catch(() => { err.textContent = "這張圖片無法使用，請試另一張。"; err.hidden = false; });
+  });
+  $("#pmform").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const err = $("#pm-error"), btn = $("#pm-save");
+    const type = $("#pm-type").value, name = $("#pm-name").value.trim(), link = $("#pm-link").value.trim();
+    if (!name) { err.textContent = "請填寫名稱。"; err.hidden = false; return; }
+    if (type === "qr" && !payPhoto) { err.textContent = "請上傳二維碼圖片。"; err.hidden = false; return; }
+    if (type === "link" && !/^https:\/\//.test(link)) { err.textContent = "付款連結必須以 https:// 開頭。"; err.hidden = false; return; }
+    if (type === "text" && !$("#pm-details").value.trim()) { err.textContent = "請填寫付款資料。"; err.hidden = false; return; }
+    err.hidden = true; btn.disabled = true; btn.textContent = "儲存中…";
+    const data = { name, type, details: $("#pm-details").value.trim(), link: type === "link" ? link : "", image: type === "qr" ? payPhoto : "", enabled: $("#pm-enabled").checked };
+    const job = editingPay
+      ? updateDoc(doc(db, "payments", editingPay.id), data)
+      : addDoc(collection(db, "payments"), { ...data, order: payments.reduce((m, p) => Math.max(m, p.order || 0), 0) + 1 });
+    job.then(() => pmdlg.close())
+      .catch(() => { err.textContent = "儲存失敗。請確認已發布最新的安全規則，或稍後再試。"; err.hidden = false; })
+      .finally(() => { btn.disabled = false; btn.textContent = "儲存"; });
+  });
+  $("#pm-delete").addEventListener("click", () => { $("#pm-confirm").hidden = false; });
+  $("#pm-delete-no").addEventListener("click", () => { $("#pm-confirm").hidden = true; });
+  $("#pm-delete-yes").addEventListener("click", () => {
+    if (!editingPay) return;
+    deleteDoc(doc(db, "payments", editingPay.id)).then(() => pmdlg.close())
+      .catch(() => { $("#pm-error").textContent = "刪除失敗，請再試。"; $("#pm-error").hidden = false; });
+  });
+
   // ---------- website text ----------
-  const TEXT = ["headline", "intro", "shelfNote", "hours", "addressShort", "enquiryNote", "claims", "instagram"];
+  const TEXT = ["headline", "intro", "shelfNote", "hours", "addressShort", "enquiryNote", "claims", "instagram", "paymentNote"];
   const LINES = ["addressLines", "stall"];
   const val = (k) => (site && site[k] !== undefined && site[k] !== "" ? site[k] : DEFAULTS[k]);
   function fillSite() {
