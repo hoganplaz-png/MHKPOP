@@ -7,8 +7,8 @@ import {
 import { setupShop } from "./shop.js";
 import { setupMembers } from "./members.js";
 import { setupContent } from "./content.js";
+import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
 import { setupTheme } from "./themeadmin.js";
-import { PROGRESS, progressKey, effectivePrice, VERDICT } from "./shoplib.js";
 import { setupProofCheck } from "./proofcheck.js";
 
 const $ = (s) => document.querySelector(s);
@@ -44,12 +44,15 @@ if (!cfg) {
     fb: { collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, deleteField },
     getWebProducts: () => products
   });
-  const theme = setupTheme({ db, $, esc, fb: { doc, onSnapshot, setDoc, serverTimestamp } });
   const shop = setupShop({
     db, $, esc, notice,
     fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion, deleteField },
     getOrders: () => orders, getWebProducts: () => products
   });
+  const theme = setupTheme({ db, $, esc, fb: { doc, onSnapshot, setDoc, serverTimestamp } });
+  // reads each payment screenshot and compares it with its order (see proofcheck.js)
+  // only the check boxes and the filter counts are redrawn, so fields being typed in are not reset
+  const pcheck = setupProofCheck({ onChange: () => refreshChecks() });
 
   // ---------- sign in / out ----------
   const stopAll = () => { unsubs.forEach((u) => u()); unsubs = []; };
@@ -73,7 +76,7 @@ if (!cfg) {
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
       (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); shop.productsChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "proofs"), orderBy("createdAt", "desc")),
-      (snap) => { proofs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); proofCheck.scan(); }, denied));
+      (snap) => { proofs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pcheck.update(proofs); renderOrders(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "payments"), orderBy("order")),
       (snap) => { payments = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); }, denied));
     unsubs.push(onSnapshot(doc(db, "settings", "site"),
@@ -104,11 +107,13 @@ if (!cfg) {
 
   // ---------- orders ----------
   const fmt = (o) => o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString("zh-HK", { hour12: false }) : "";
-  const proofCheck = setupProofCheck({ db, fb: { doc, updateDoc }, getProofs: () => proofs, getOrders: () => orders, onUpdate: () => { renderOrders(); const dlg = $("#prdlg"); if (dlg.open) { const p = proofs.find((x) => x.id === $("#prdlg-recheck").dataset.id); const r = p && proofCheck.resultOf(p); if (r) $("#prdlg-check").innerHTML = "<b>自動檢查：" + esc(VERDICT[r.verdict] || "未能檢查") + "</b><ul class=\"pf-list\">" + r.checks.map((c) => '<li class="' + c.state + '">' + esc(c.label) + "</li>").join("") + "</ul>"; } } });
   const proofsOf = (o) => proofs.filter((p) => p.orderNo === o.orderNo);
+  const checksOf = (o) => proofsOf(o).map((p) => ({ p, r: pcheck.resultFor(o, p, proofs) }));
+  // an order needs a manual check when any of its screenshots did not pass (or could not be read)
+  const needsCheck = (o) => o.status !== "cancelled" && checksOf(o).some(({ r }) => r.state === "error" || (r.state === "done" && r.status === "review"));
   const visibleOrders = () => {
     const q = $("#search").value.trim().toLowerCase();
-    return orders.filter((o) => (filter === "all" || (filter === "proof" ? proofsOf(o).length > 0 : o.status === filter)) &&
+    return orders.filter((o) => (filter === "all" || (filter === "proof" ? proofsOf(o).length > 0 : filter === "review" ? needsCheck(o) : o.status === filter)) &&
       (!q || [o.orderNo, o.name, o.contact, o.email, o.address, o.notes].join(" ").toLowerCase().includes(q)));
   };
 
@@ -117,30 +122,22 @@ if (!cfg) {
     filter = b.dataset.f; renderOrders();
   });
   $("#search").addEventListener("input", renderOrders);
-  // change an order's status; confirmed / done = a sale (stock down, member points), cancelled = both put back
-  function setOrderStatus(id, status, tag) {
+  $("#orders").addEventListener("change", (e) => {
+    const sel = e.target.closest("select[data-id]"); if (!sel) return;
+    const tag = sel.parentElement.querySelector(".saving");
     tag.textContent = "儲存中…";
-    const order = orders.find((o) => o.id === id), upd = { status };
+    const order = orders.find((o) => o.id === sel.dataset.id), status = sel.value, upd = { status };
     // keep the customer-visible progress in step with the status
     if (status === "confirmed" && (!order.progress || order.progress === "received")) upd.progress = "paid";
     if (status === "done") upd.progress = "done";
-    return updateDoc(doc(db, "orders", id), upd)
+    updateDoc(doc(db, "orders", sel.dataset.id), upd)
       .then(() => {
         tag.textContent = "已儲存";
+        // confirmed / done = a sale: stock goes down and the member gets points. cancelled = both are put back.
         const next = { ...order, ...upd };
         return Promise.all([shop.syncOrderSale(next, status), members.syncOrder(next, status)]);
       })
       .catch(() => { tag.textContent = "儲存失敗，請再試"; });
-  }
-  $("#orders").addEventListener("change", (e) => {
-    const sel = e.target.closest("select[data-id]"); if (!sel) return;
-    setOrderStatus(sel.dataset.id, sel.value, sel.parentElement.querySelector(".saving"));
-  });
-  $("#orders").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-quick-confirm]"); if (!b) return;
-    const tag = b.parentElement.querySelector(".saving");
-    b.disabled = true;
-    setOrderStatus(b.dataset.quickConfirm, "confirmed", tag);
   });
   // progress, SF tracking number and a note the customer sees on their order page
   $("#orders").addEventListener("click", (e) => {
@@ -163,12 +160,23 @@ if (!cfg) {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
 
-  function renderOrders() {
+  function renderFilters() {
     const count = (s) => orders.filter((o) => s === "all" || o.status === s).length;
     $("#c-orders").textContent = count("new") ? "(" + count("new") + " 新)" : "";
-    const nProof = orders.filter((o) => proofsOf(o).length > 0).length;
-    $("#filters").innerHTML = ["all", "new", "confirmed", "done", "cancelled", "proof"].map((s) =>
-      '<button type="button" class="chip" data-f="' + s + '" aria-pressed="' + (filter === s) + '">' + (s === "all" ? "全部" : s === "proof" ? "有付款截圖" : ORDER_STATUS[s]) + " (" + (s === "proof" ? nProof : count(s)) + ")</button>").join("");
+    const nProof = orders.filter((o) => proofsOf(o).length > 0).length, nReview = orders.filter(needsCheck).length;
+    const label = { all: "全部", proof: "有付款截圖", review: "需人手核對" };
+    $("#filters").innerHTML = ["all", "new", "confirmed", "done", "cancelled", "proof", "review"].map((s) =>
+      '<button type="button" class="chip' + (s === "review" && nReview ? " chip-alert" : "") + '" data-f="' + s + '" aria-pressed="' + (filter === s) + '">' + (label[s] || ORDER_STATUS[s]) + " (" + (s === "proof" ? nProof : s === "review" ? nReview : count(s)) + ")</button>").join("");
+  }
+  function refreshChecks() {
+    renderFilters();
+    if (filter === "review") { renderOrders(); return; }
+    document.querySelectorAll("[data-checks]").forEach((box) => {
+      const o = orders.find((x) => x.id === box.dataset.checks); if (o) box.innerHTML = checksHtml(o);
+    });
+  }
+  function renderOrders() {
+    renderFilters();
     const list = visibleOrders();
     $("#empty").hidden = list.length > 0;
     $("#orders").innerHTML = list.map((o) => {
@@ -199,32 +207,37 @@ if (!cfg) {
       '<button type="button" class="btn btn-line" data-save-track>儲存進度</button><span class="saving" aria-live="polite"></span>' +
       (o.uid ? '<small class="hint">會員積分：' + (members.hasEarned(o) ? "已加分" : "按「已確認」後加 " + pts + " 分") + "</small>" : '<small class="hint">此訂單沒有會員帳戶（舊訂單）</small>') + "</div>";
   }
-  const VCLASS = { match: "ok", review: "warn", mismatch: "bad", duplicate: "bad", unreadable: "warn", error: "warn" };
   function proofHtml(o) {
-    const list = proofsOf(o);
+    const list = checksOf(o);
     if (!list.length) return '<p class="o-proof none">未有付款截圖</p>';
-    const res = list.map((p) => proofCheck.resultOf(p)).filter(Boolean);
-    const best = res.find((r) => r.verdict === "match") || res[0];
-    const busy = list.some((p) => !proofCheck.resultOf(p));
-    let box = "";
-    if (busy) box = '<span class="pf-badge warn">自動檢查中…</span>';
-    else if (best) box = '<span class="pf-badge ' + (VCLASS[best.verdict] || "warn") + '">自動檢查：' + esc(VERDICT[best.verdict] || "未能檢查") + "</span>" +
-      '<ul class="pf-list">' + best.checks.map((c) => '<li class="' + c.state + '">' + esc(c.label) + "</li>").join("") + "</ul>";
-    const quick = best && best.verdict === "match" && o.status === "new"
-      ? '<button type="button" class="btn btn-solid" data-quick-confirm="' + o.id + '">已核對 App 收款，一鍵確認</button><span class="saving" aria-live="polite"></span><small class="hint">這只是看截圖，請先在 PayMe／支付寶／銀行 App 確認真的收到款項。</small>' : "";
-    return '<div class="o-proof"><b>付款截圖 (' + list.length + ")</b>" + list.map((p) =>
-      '<button type="button" class="proof-thumb" data-proof="' + p.id + '" aria-label="查看付款截圖"><img src="' + esc(p.image) + '" alt=""></button>').join("") + box + quick + "</div>";
+    return '<div class="o-proof"><b>付款截圖 (' + list.length + ")</b>" + list.map(({ p }) =>
+      '<button type="button" class="proof-thumb" data-proof="' + p.id + '" aria-label="查看付款截圖"><img src="' + esc(p.image) + '" alt=""></button>').join("") + "</div>" +
+      '<div class="o-checks" data-checks="' + esc(o.id) + '">' + checksHtml(o) + "</div>";
   }
+  const checksHtml = (o) => { const list = checksOf(o); return list.map(({ p, r }, i) => checkHtml(p, r, list.length > 1 ? i + 1 : 0)).join(""); };
+  const MARK = { ok: "✓", bad: "✗", info: "–" };
+  function checkHtml(p, r, n) {
+    const tag = n ? "（第 " + n + " 張）" : "";
+    if (r.state === "pending") return '<div class="o-check is-pending" role="status"><span class="o-check-head"><span class="o-check-dot" aria-hidden="true"></span>自動核對中' + tag + "…</span></div>";
+    if (r.state === "error") return '<div class="o-check is-review"><span class="o-check-head">無法自動讀取截圖' + tag + '，請人手核對</span><button type="button" class="o-check-again" data-recheck="' + p.id + '">再試</button></div>';
+    const pass = r.status === "pass";
+    return '<div class="o-check ' + (pass ? "is-pass" : "is-review") + '"><span class="o-check-head">' + (pass ? "自動核對：相符" : "自動核對：需人手核對") + tag + "</span>" +
+      '<ul class="o-check-list">' + r.checks.map((c) => '<li class="' + c.state + '"><span aria-hidden="true">' + MARK[c.state] + "</span> " + esc(c.text) + "</li>").join("") + "</ul>" +
+      '<small class="hint">' + (pass ? "仍請在 PayMe／Alipay 確認收到款項才按「已確認」。" : "請打開截圖，並在 PayMe／Alipay 核對。") + "</small></div>";
+  }
+  $("#orders").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-recheck]"); if (!b) return;
+    const p = proofs.find((x) => x.id === b.dataset.recheck); if (p) pcheck.recheck(p);
+  });
   $("#orders").addEventListener("click", (e) => {
     const b = e.target.closest("[data-proof]"); if (!b) return;
     const p = proofs.find((x) => x.id === b.dataset.proof); if (!p) return;
-    const r = proofCheck.resultOf(p);
-    $("#prdlg-img").src = p.image; $("#prdlg-recheck").dataset.id = p.id;
+    $("#prdlg-img").src = p.image;
     $("#prdlg-meta").textContent = p.orderNo + (p.note ? " · 備註：" + p.note : "") + (p.createdAt && p.createdAt.toDate ? " · " + p.createdAt.toDate().toLocaleString("zh-HK", { hour12: false }) : "");
-    $("#prdlg-check").innerHTML = r ? '<b>自動檢查：' + esc(VERDICT[r.verdict] || "未能檢查") + "</b><ul class=\"pf-list\">" + r.checks.map((c) => '<li class="' + c.state + '">' + esc(c.label) + "</li>").join("") + "</ul>" + (r.text ? '<small class="hint">讀到的文字：' + esc(r.text) + "</small>" : "") : "<small class=\"hint\">尚未檢查。</small>";
+    const txt = pcheck.textOf(p.id);
+    $("#prdlg-ocr").hidden = !txt; $("#prdlg-ocr-text").textContent = txt;
     $("#prdlg").showModal();
   });
-  $("#prdlg-recheck").addEventListener("click", (e) => { $("#prdlg-check").textContent = "檢查中…"; proofCheck.recheck(e.currentTarget.dataset.id); });
   $("#prdlg-close").addEventListener("click", () => $("#prdlg").close());
 
   // ---------- products ----------

@@ -114,10 +114,7 @@ service cloud.firestore {
     match /proofs/{proofId} {
       allow create: if validProof();
       allow read, delete: if isAdmin();
-      // only the automatic check result may be added to a screenshot, and only by the shop owner
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['check'])
-        && request.resource.data.check is map;
+      allow update: if false;
     }
 
     match /payments/{paymentId} {
