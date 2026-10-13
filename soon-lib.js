@@ -5,9 +5,20 @@
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   function img(v) { return /^data:image\/(jpeg|png|webp);base64,/.test(v || "") ? v : ""; }
   function href(l) { l = String(l || ""); if (l.charAt(0) === "#") return "/" + l; return /^(https:\/\/|\/)/.test(l) ? l : ""; }
+  function todayStr() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  // an announcement set to 到發售日自動變成正式商品 is a normal product from its release date on (worked out on every load, no admin action needed)
+  function turned(u) { return !!(u.autoSell && u.releaseDate && u.releaseDate <= todayStr() && u.price != null); }
   window.MHSoon = {
+    turned: turned,
+    // the normal product an announcement becomes (same id the admin page writes back, so it is never listed twice)
+    asProduct: function (u) {
+      var p = { id: "up-" + u.id, group: u.group || "MHKPOP", name: u.title, price: Number(u.price), tag: "", image: u.image || "", status: "ok", order: 0 };
+      if (u.storeOnly) p.channels = ["sf"];
+      return p;
+    },
+    pending: function (list) { return list.filter(function (u) { return !u.converted && !turned(u); }); },
     card: function (u) {
-      var today = (function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); })(), released = u.releaseDate && u.releaseDate <= today;
+      var today = todayStr(), released = u.releaseDate && u.releaseDate <= today;
       var when = u.releaseDate
         ? (released ? '<div class="soon-when">' + esc(T("soon.released")) + "</div>" : '<div class="soon-when"><div class="cdown" data-when="' + esc(u.releaseDate) + '"></div><small class="hint">' + esc(T("soon.when", { date: u.releaseDate })) + "</small></div>")
         : '<div class="soon-when">' + esc(u.releaseText ? T("soon.when", { date: u.releaseText }) : T("soon.tbd")) + "</div>";

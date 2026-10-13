@@ -128,7 +128,7 @@
 
   // coming-soon teaser, extra pages (活動頁面) in the menu and as cards on the home page
   function renderExtras(remote) {
-    var up = remote && remote.upcoming && window.MHSoon ? window.MHSoon.sort(remote.upcoming) : [];
+    var up = remote && remote.upcoming && window.MHSoon ? window.MHSoon.sort(window.MHSoon.pending(remote.upcoming)) : [];
     $("#nav-soon").hidden = !up.length; $("#soon-teaser").hidden = !up.length;
     if (up.length) { $("#soon-grid").innerHTML = up.slice(0, 3).map(window.MHSoon.card).join(""); window.MHSoon.clocks($("#soon-grid")); }
     var pg = remote && remote.pages ? remote.pages.slice().sort(function (a, b) { return (Number(a.order) || 0) - (Number(b.order) || 0); }) : [];
@@ -146,6 +146,14 @@
         '<div class="soon-body"><h3>' + esc(p.title) + "</h3>" + (p.subtitle ? '<p class="soon-note">' + esc(p.subtitle) + "</p>" : "") + '<span class="promo-more">' + esc(p.homeLabel || T("promo.more")) + "</span></div></a>";
     }).join("");
   }
+  // announcements whose release date has arrived join the shelf as normal products
+  function withReleased(list, upcoming) {
+    var have = {}; list.forEach(function (p) { have[p.id] = 1; });
+    var max = list.reduce(function (m, p) { return Math.max(m, Number(p.order) || 0); }, 0);
+    (upcoming || []).filter(function (u) { return !u.converted && window.MHSoon && window.MHSoon.turned(u) && !have["up-" + u.id]; })
+      .forEach(function (u, i) { var p = window.MHSoon.asProduct(u); p.order = max + 1 + i; list = list.concat([p]); });
+    return list;
+  }
   function emptyShelf() { return '<p class="loading" id="empty-shelf">' + esc(T("shelf.empty")) + "</p>"; }
 
   window.MHA.init();
@@ -157,8 +165,8 @@
       bindSettings();
     }
     window.MHA.refresh(); renderExtras(remote);
-    if (remote && remote.products && remote.products.length) return remote.products;
-    return loadProducts();
+    if (remote && remote.products && remote.products.length) return withReleased(remote.products, remote.upcoming);
+    return loadProducts().then(function (l) { return withReleased(l, remote && remote.upcoming); });
   }).then(function (list) {
     allProducts = M.setProducts(list);
     list = allProducts;

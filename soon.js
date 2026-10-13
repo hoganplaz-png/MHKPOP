@@ -11,7 +11,7 @@
     return c.fs.getDocs(c.fs.query(c.fs.collection(c.db, "upcoming"), c.fs.where("published", "==", true))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); });
   }).catch(function () { return []; }).then(function (list) {
     $("#soon-loading").hidden = true;
-    list = window.MHSoon.sort(list);
+    list = window.MHSoon.sort(window.MHSoon.pending(list));
     $("#soon-empty").hidden = list.length > 0;
     $("#soon-grid").innerHTML = list.map(window.MHSoon.card).join("");
     window.MHSoon.clocks();
