@@ -16,6 +16,7 @@
         "README.md",
         "products-template.csv",
         "tests/**",
+        "functions/**",
         "docs/**",
         "redirect/**"
       ],
@@ -146,5 +147,8 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "source": "functions"
+  }
 }

@@ -108,3 +108,12 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 - **Theme**: every colour, corner radius, font, shadow and motion curve of the public pages is a CSS variable in the `THEME` block at the top of `styles.css` (`--ink`, `--accent`, `--r-card`, `--font-display`, `--tone-1-bg` ...). Change a value there and every page follows.
 - **Content lists**: `content.js` holds the rotating announcement bar, the perks strip, the hero numbers, the floating cards by the logo and the product-page info tabs. Shop details stay in `settings.js`; all other wording is on the admin page.
 - **Shop pieces**: `shop-core.js` (product rules, cart, product card, announcement bar), `product.html` / `product.js` / `product.css` (one page per album at `product.html?id=...`). The cart is kept in the visitor's browser and feeds the checkout.
+
+## Customer order emails
+`functions/` is a small Firebase Cloud Function that emails the customer when their order reaches a stage: 已收到訂單 (when they order), 已確認收款 (you press 已確認), 貨品已到, 已寄出, 可到門市取貨, 已完成 (the 訂單進度 box). Each stage is sent once per order, cancelled orders send nothing, and the wording (Traditional Chinese plus an English line) is in `functions/emails.js`. Test: `node tests/emails.test.mjs`.
+
+One-time setup (the automatic deploy does not do this, because it needs your own accounts):
+1. Upgrade the Firebase project to the **Blaze** plan (pay as you go; a small shop normally stays within the free allowance, but a billing card is required).
+2. Use a Gmail account for sending and create a Google **app password** for it (Google account, Security, 2-Step Verification, App passwords).
+3. In a terminal with `firebase-tools` logged in: `firebase functions:secrets:set SMTP_USER` (the Gmail address), `firebase functions:secrets:set SMTP_PASS` (the app password), then `firebase deploy --only functions`.
+Secrets stay in Firebase, never in this repository. Gmail allows roughly 500 emails a day; a service such as Resend can replace it later by changing `functions/index.js`.
