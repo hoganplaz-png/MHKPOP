@@ -67,7 +67,9 @@ Personal PayMe and Alipay QR codes cannot be checked automatically against your 
 For link methods, `{amount}` and `{order}` in the link are filled in automatically, for example `https://paypal.me/yourname/{amount}HKD`.
 
 ## Security rules (Firestore)
-`firestore.rules` is the source. The rules are published **by hand** in Firebase console, under **Firestore Database → 規則 (Rules) → 發布 (Publish)**, because the deploy account is not allowed to publish them. After the first paste, paste again only when `firestore.rules` changes. Replace `__ADMIN_EMAIL__` with the email in `admin-email.txt` before pasting.
+`firestore.rules` is the source. The rules are published **by hand** in Firebase console, under **Firestore Database → 規則 (Rules) → 發布 (Publish)**, because the deploy account is not allowed to publish them. After the first paste, paste again only when `firestore.rules` changes. Replace `__ADMIN_EMAIL__` with the emails in `admin-email.txt` before pasting. With two admins the line reads `request.auth.token.email in ['first@gmail.com', 'second@gmail.com'];`.
+
+`admin-email.txt` holds one admin email per line, and every listed email has full admin rights. To add an admin: add the email there, create that user under **Authentication → Users → Add user**, and paste the updated rules.
 
 - A signed-in customer can add an order under their own account, and read only their own orders. The order number is the document name, so an order can never be overwritten. Only the admin email can read all orders or change their status. Nobody can delete orders.
 - Anyone can read products, payment methods and website text. Only the admin email can change them.
