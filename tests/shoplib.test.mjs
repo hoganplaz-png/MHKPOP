@@ -28,3 +28,13 @@ assert.equal(Math.round(r.netProfit), 315 - 3326);
 assert.equal(r.stockBought, 520);                   // only the October purchase, shipping included
 assert.equal(Math.round(r.cashNet), 315 - 520 - 3140);
 console.log("shoplib profit tests passed");
+
+// a pre-order sold before its purchase was recorded still gets its cost
+const pre = profitReport({
+  sales: [{ date: "2026-10-05", source: "pos", total: 100, items: [{ lineId: "", group: "IVE", name: "CD", qty: 2, price: 50 }] }],
+  purchases, expenses: [], from: "2026-10-01", to: "2026-10-31"
+});
+assert.equal(pre.cogs, 60);
+assert.equal(pre.unknownItems, 0);
+assert.equal(pre.guessedItems, 1);
+console.log("pre-order cost test passed");

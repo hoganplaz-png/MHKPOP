@@ -166,11 +166,20 @@ export function expenseInRange(e, from, to) {
 
 // ---------- profit ----------
 export function profitReport({ sales, purchases, expenses, from, to }) {
-  const lineCost = {};
-  (purchases || []).forEach((p) => calcPurchase(p).lines.forEach((l) => { lineCost[l.id] = l.unitCost; }));
+  const lineCost = {}, allPl = [];
+  (purchases || []).forEach((p) => calcPurchase(p).lines.forEach((l) => { lineCost[l.id] = l.unitCost; allPl.push(l); }));
+  // An item sold before its purchase was recorded (a pre-order that has not arrived yet) has no purchase line.
+  // Match it by name to the purchases now, so its cost still counts; averaged over the matching lines by quantity.
+  const byName = {};
+  const nameCost = (name) => {
+    if (byName[name] !== undefined) return byName[name];
+    const m = matchLines(name, allPl.filter((l) => l.unitCost > 0 || Number(l.qty) > 0));
+    const q = m.reduce((t, l) => t + (Number(l.qty) || 0), 0);
+    return (byName[name] = m.length ? (q > 0 ? m.reduce((t, l) => t + l.unitCost * (Number(l.qty) || 0), 0) / q : m[0].unitCost) : null);
+  };
   const inRange = (sales || []).filter((s) => s.date >= from && s.date <= to);
   const byProduct = {}, byDay = {};
-  let revenue = 0, cogs = 0, unknownRevenue = 0, unknownItems = 0, itemQty = 0;
+  let revenue = 0, cogs = 0, unknownRevenue = 0, unknownItems = 0, itemQty = 0, guessedItems = 0, guessedCost = 0;
   const bySource = { pos: 0, import: 0, web: 0 };
   inRange.forEach((s) => {
     const items = s.items || [];
@@ -180,7 +189,10 @@ export function profitReport({ sales, purchases, expenses, from, to }) {
     let saleCogs = 0;
     items.forEach((i) => {
       const q = Number(i.qty) || 0, rev = (Number(i.price) || 0) * q * factor;
-      const unit = i.lineId && lineCost[i.lineId] != null ? lineCost[i.lineId] : (Number.isFinite(Number(i.cost)) && i.cost !== "" && i.cost != null ? Number(i.cost) : null);
+      let unit = i.lineId && lineCost[i.lineId] != null ? lineCost[i.lineId] : (Number.isFinite(Number(i.cost)) && i.cost !== "" && i.cost != null ? Number(i.cost) : null);
+      let guessed = false;
+      if (unit == null && i.lineId !== "none") { unit = nameCost(dn(i.group, i.name)); if (unit == null) unit = nameCost(i.name); guessed = unit != null; }
+      if (guessed) { guessedItems++; guessedCost += unit * q; }
       const key = dn(i.group, i.name);
       const row = byProduct[key] || (byProduct[key] = { name: key, qty: 0, revenue: 0, cost: 0, unknownRevenue: 0 });
       row.qty += q; row.revenue += rev; itemQty += q;
@@ -210,7 +222,7 @@ export function profitReport({ sales, purchases, expenses, from, to }) {
     from, to, saleCount: inRange.length, itemQty, revenue, cogs, grossProfit: gross, expenseTotal, netProfit: gross - expenseTotal,
     revenueBySource: bySource, rentTotal, otherExpenseTotal: expenseTotal - rentTotal, totalCost: cogs + expenseTotal,
     stockBought, cashNet: revenue - stockBought - expenseTotal,
-    unknownRevenue, unknownItems,
+    unknownRevenue, unknownItems, guessedItems, guessedCost,
     products: Object.values(byProduct).map((r) => ({ ...r, profit: r.revenue - r.unknownRevenue - r.cost })).sort((a, b) => b.profit - a.profit),
     days: Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)),
     expenses: Object.entries(exp).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount)

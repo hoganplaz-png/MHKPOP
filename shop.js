@@ -607,6 +607,7 @@ export function setupShop(ctx) {
       '<div class="pl-cash"><div><small>期內進貨支出</small><b>' + money(rep.stockBought) + "</b></div>" +
       '<div><small>現金淨額（收入 − 進貨支出 − 租金及開支）</small><b class="' + (rep.cashNet < 0 ? "is-neg" : "") + '">' + money(rep.cashNet) + "</b></div></div>" +
       '<p class="hint">' + rep.saleCount + " 單，售出 " + rep.itemQty + " 件。總利潤只計已賣出貨品的成本；未賣出的存貨不算虧損。現金淨額則把這段時間所有入貨支出都計算在內，方便你看實際收支。</p>";
+    if (rep.guessedItems) html += '<p class="hint">已預售／未到貨的 ' + rep.guessedItems + " 項銷售沒有指定進貨單，已按貨品名稱配對進貨單，成本 " + money(rep.guessedCost) + " 已計入。名稱不同的貨品請在「進貨及成本」使用相同名稱。</p>";
     if (rep.unknownItems) html += '<p class="o-warn">⚠ 有 ' + rep.unknownItems + " 項銷售（共 " + money(rep.unknownRevenue) + "）找不到進貨成本，未計入成本，毛利會偏高。請在「進貨及成本」補上進貨單，或在銷售紀錄刪除後重新輸入。</p>";
     if (purchases.some((p) => calcPurchase(p).rateMissing)) html += '<p class="o-warn">⚠ 有進貨單未填匯率，成本未能計算。</p>';
     html += "<h2 class=\"sec\">各貨品利潤</h2>" + (rep.products.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>貨品</th><th>售出</th><th>營業額</th><th>成本</th><th>利潤</th><th>利潤率</th></tr></thead><tbody>' +
