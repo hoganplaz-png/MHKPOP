@@ -269,3 +269,5 @@ input.inl { width: 90px; min-height: 40px; padding: 4px 8px; border: 1px solid v
 .chk-list { flex: 1 1 100%; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px 10px; }
 .chk-list .check { margin-top: 8px !important; }
 .is-hidden { opacity: .55; }
+.inline-row { display: flex; gap: 8px; } .inline-row .field { flex: 1; min-width: 0; }
+.ex-row.is-off { opacity: .6; }

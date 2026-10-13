@@ -554,3 +554,28 @@ export function effectivePrice(p, today = todayStr()) {
   return Number(p.price) || 0;
 }
 export const onSale = (p, today = todayStr()) => effectivePrice(p, today) < (Number(p.price) || 0);
+
+// ---------- discount codes ----------
+// A code is stored under the SHA-256 of its normalised text, so the list of codes can never be read or guessed:
+// a customer can only fetch the one document whose id they already know (see firestore.rules).
+export const normCode = (c) => String(c || "").trim().toUpperCase().replace(/\s+/g, "");
+export async function codeId(code) {
+  const bytes = new TextEncoder().encode(normCode(code));
+  const buf = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+// What a code is worth on an order. c = the code document, subtotal = goods total (HK$), email = the customer,
+// mine = how many earlier orders of this customer already used it, today = "YYYY-MM-DD".
+export function evalCode(c, subtotal, email, mine, today) {
+  const no = (reason) => ({ ok: false, reason, discount: 0 });
+  if (!c || c.active === false) return no("invalid");
+  if (c.email && String(c.email).trim().toLowerCase() !== String(email || "").trim().toLowerCase()) return no("invalid");
+  if (c.expires && today > c.expires) return no("expired");
+  if (Number(c.maxUses) > 0 && (Number(c.used) || 0) >= Number(c.maxUses)) return no("used-up");
+  if (Number(c.perCustomer) > 0 && mine >= Number(c.perCustomer)) return no("mine");
+  if (Number(c.minSpend) > 0 && subtotal < Number(c.minSpend)) return no("min");
+  const v = Number(c.value) || 0;
+  const raw = c.type === "percent" ? subtotal * Math.min(v, 100) / 100 : v;
+  const discount = Math.min(subtotal, Math.max(0, Math.round(raw * 100) / 100));
+  return discount > 0 ? { ok: true, discount } : no("invalid");
+}

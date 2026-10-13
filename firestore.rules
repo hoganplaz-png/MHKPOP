@@ -21,11 +21,33 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // A discount code on an order must be a real, active code, belong to this customer if it is limited to one email,
+    // be inside its expiry date and minimum spend, be worth no more than its rate, and the same batch must raise
+    // its use counters by exactly one (so the use limits cannot be skipped).
+    function validOrderCode(d) {
+      let base = /databases/$(database)/documents/codes/$(d.codeId);
+      let c = get(base).data;
+      let cAfter = getAfter(base).data;
+      let sub = d.total + d.discount;
+      return d.codeId is string && d.code is string && d.discount is number && d.discount > 0
+        && c.active == true && d.code == c.code
+        && (!('email' in c) || c.email == '' || c.email == d.email.lower())
+        && (!('expiresAt' in c) || request.time < c.expiresAt)
+        && (!('minSpend' in c) || sub >= c.minSpend)
+        && (c.type == 'percent' ? d.discount <= sub * c.value / 100 + 0.01 : d.discount <= c.value)
+        && cAfter.used == c.used + 1
+        && (!('maxUses' in c) || c.maxUses == 0 || cAfter.used <= c.maxUses)
+        && (!('perCustomer' in c) || c.perCustomer == 0
+            || getAfter(/databases/$(database)/documents/codes/$(d.codeId)/uses/$(request.auth.uid)).data.n <= c.perCustomer);
+    }
+
     function validOrder(orderId) {
       let d = request.resource.data;
       let keys = ['orderNo', 'uid', 'email', 'name', 'contact', 'delivery', 'address', 'notes', 'items', 'total', 'agreed', 'status', 'createdAt'];
       return signedIn()
-        && d.keys().hasOnly(keys) && d.keys().hasAll(keys)
+        && d.keys().hasOnly(keys.concat(['code', 'codeId', 'discount'])) && d.keys().hasAll(keys)
+        && (('code' in d) == ('codeId' in d)) && (('codeId' in d) == ('discount' in d))
+        && (!('codeId' in d) || validOrderCode(d))
         && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}') && orderId == d.orderNo
         && d.uid == request.auth.uid
         && d.email is string && d.email.size() <= 200 && d.email == request.auth.token.email
@@ -233,16 +255,28 @@ service cloud.firestore {
     }
     function validMemberAdmin() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['uid', 'email', 'name', 'points', 'spent', 'joinedAt', 'note', 'updatedAt'])
+      return d.keys().hasOnly(['uid', 'email', 'name', 'points', 'spent', 'joinedAt', 'note', 'updatedAt', 'lastRedeem'])
         && d.keys().hasAll(['uid', 'email', 'points', 'spent'])
         && d.uid is string && d.email is string && d.points is number && d.spent is number
         && optStr(d, 'name', 60) && optStr(d, 'note', 300);
+    }
+    // A member may lower their OWN points, and only together with a redemption created in the same batch for exactly that many points.
+    function validMemberRedeem(uid) {
+      let n = request.resource.data;
+      let o = resource.data;
+      let red = /databases/$(database)/documents/redemptions/$(n.lastRedeem);
+      return signedIn() && request.auth.uid == uid
+        && n.diff(o).affectedKeys().hasOnly(['points', 'lastRedeem', 'updatedAt'])
+        && n.lastRedeem is string
+        && !exists(red)
+        && getAfter(red).data.uid == uid
+        && n.points >= 0 && n.points == o.points - getAfter(red).data.points;
     }
     match /members/{uid} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
       allow create: if validMemberSelf(uid) || (isAdmin() && validMemberAdmin());
-      allow update: if isAdmin() && validMemberAdmin();
+      allow update: if (isAdmin() && validMemberAdmin()) || validMemberRedeem(uid);
       allow delete: if isAdmin();
     }
     function validPointLog() {
@@ -252,9 +286,16 @@ service cloud.firestore {
         && d.uid is string && d.points is number && d.type in ['earn', 'adjust', 'redeem']
         && optStr(d, 'orderNo', 30) && optStr(d, 'note', 200);
     }
-    match /pointlogs/{id} {
+    function validRedeemLog(logId) {
+      let d = request.resource.data;
+      let red = getAfter(/databases/$(database)/documents/redemptions/$(logId.replace('^redeem-', '')));
+      return signedIn() && logId.matches('redeem-.*') && validPointLog()
+        && d.uid == request.auth.uid && d.type == 'redeem'
+        && red.data.uid == request.auth.uid && d.points == -red.data.points;
+    }
+    match /pointlogs/{logId} {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if isAdmin() && validPointLog();
+      allow create: if (isAdmin() && validPointLog()) || validRedeemLog(logId);
       allow update: if false;
       allow delete: if isAdmin();
     }
@@ -265,6 +306,72 @@ service cloud.firestore {
         && request.resource.data.enabled is bool && request.resource.data.per is number && request.resource.data.per > 0
         && request.resource.data.tiers is list && request.resource.data.tiers.size() <= 6;
       allow delete: if false;
+    }
+
+    // ---- Products members can swap points for ----
+    match /rewards/{id} {
+      allow read: if isAdmin() || resource.data.active == true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'points', 'productId', 'active', 'order', 'createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.points is number && request.resource.data.points > 0 && request.resource.data.points < 10000000
+        && request.resource.data.active is bool;
+      allow delete: if isAdmin();
+    }
+    function validRedemption(rid) {
+      let d = request.resource.data;
+      let rw = get(/databases/$(database)/documents/rewards/$(d.rewardId)).data;
+      let mine = /databases/$(database)/documents/members/$(request.auth.uid);
+      return signedIn()
+        && d.keys().hasOnly(['uid', 'email', 'rewardId', 'name', 'points', 'status', 'createdAt'])
+        && d.keys().hasAll(['uid', 'email', 'rewardId', 'name', 'points', 'status', 'createdAt'])
+        && d.uid == request.auth.uid && d.email == request.auth.token.email
+        && d.status == 'new' && d.createdAt == request.time
+        && rw.active == true && d.name == rw.name && d.points == rw.points
+        && get(mine).data.points >= d.points
+        && getAfter(mine).data.lastRedeem == rid;
+    }
+    match /redemptions/{rid} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if validRedemption(rid);
+      allow update: if isAdmin() && resource.data.status == 'new'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['fulfilled', 'cancelled'];
+      allow delete: if false;
+    }
+
+    // ---- Discount codes. Each code lives under the SHA-256 of its text: the list is admin-only, a customer can only
+    //      fetch the one document whose id they can already compute from a code they were given. ----
+    match /codes/{id} {
+      allow get: if signedIn();
+      allow list: if isAdmin();
+      allow create, update: if (isAdmin() && validCode()) || validCodeUse();
+      allow delete: if isAdmin();
+    }
+    function validCode() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['code', 'type', 'value', 'active', 'used', 'maxUses', 'perCustomer', 'minSpend', 'expires', 'expiresAt', 'email', 'note', 'createdAt', 'lastOrder'])
+        && d.code is string && d.code.size() >= 4 && d.code.size() <= 24
+        && d.type in ['percent', 'amount'] && d.value is number && d.value > 0 && d.value < 1000000
+        && (d.type != 'percent' || d.value <= 100)
+        && d.active is bool && d.used is number
+        && optStr(d, 'note', 100) && optStr(d, 'email', 200) && optStr(d, 'expires', 10);
+    }
+    // customers: the only change they may make to a code is "used + 1", together with the order that used it
+    function validCodeUse() {
+      let n = request.resource.data;
+      let o = resource.data;
+      let order = /databases/$(database)/documents/orders/$(n.lastOrder);
+      return signedIn()
+        && n.diff(o).affectedKeys().hasOnly(['used', 'lastOrder'])
+        && n.used == o.used + 1 && n.lastOrder is string
+        && !exists(order) && getAfter(order).data.codeId == resource.id && getAfter(order).data.uid == request.auth.uid;
+    }
+    match /codes/{id}/uses/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == 1;
+      allow update: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == resource.data.n + 1;
+      allow delete: if isAdmin();
     }
 
     match /orders/{orderId} {
