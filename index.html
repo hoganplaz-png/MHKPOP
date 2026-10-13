@@ -23,10 +23,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="topbar caps">
-    <span data-s="addressShort"></span>
-    <span data-s="hours"></span>
-    <span data-t="nav.sold">售完即止 · 不設預留</span>
+  <div class="announce" role="region" aria-label="公告">
+    <ul class="ann-list" id="announce"><li class="ann on"><span data-t="nav.sold">售完即止 · 不設預留</span></li></ul>
   </div>
 
   <header class="nav">
@@ -43,6 +41,7 @@
       <div class="nav-actions">
         <button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button>
         <a class="btn btn-solid" href="#order" data-t="nav.order">落單表格</a>
+        <button type="button" class="cart-btn" aria-label="購物車"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="cart-count" hidden>0</span></button>
       </div>
     </div>
   </header>
@@ -58,18 +57,28 @@
           <a class="btn btn-solid btn-lg" href="#shelf" data-t="hero.cta1">睇價目</a>
           <a class="btn btn-line btn-lg" href="#order" data-t="hero.cta2">填寫落單表格</a>
         </div>
+        <div class="hero-stats" id="hero-stats"></div>
       </div>
       <div class="hero-art">
-        <div class="tile"><img class="logo-float" src="assets/logo.png" alt="MH KPOP SELL 標誌" width="534" height="518"></div>
-        <div class="badge" aria-hidden="true">
-          <svg class="badge-spin" viewBox="0 0 120 120" width="100%" height="100%" aria-hidden="true">
-            <defs><path id="ring" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
-            <text font-family="Jost, sans-serif" font-size="11" font-weight="500" letter-spacing="3.2" fill="#122521"><textPath href="#ring" data-t="hero.ring">SELL OUT · 售完即止 · ALBUMS · 專輯 ·</textPath></text>
-          </svg>
-          <span class="badge-num" data-t="hero.badge">3折</span>
+        <div class="orb">
+          <div class="orb-halo" aria-hidden="true"></div>
+          <div class="orb-square" aria-hidden="true"></div>
+          <svg class="orb-ring" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" /><circle class="orb-dot" cx="100" cy="4" r="3.2" /></svg>
+          <div class="orb-disc"><img class="orb-logo" src="assets/logo.png" alt="MH KPOP SELL 標誌" width="534" height="518"></div>
+          <div class="float-card fc-1" data-hero-card="0" aria-hidden="true"></div>
+          <div class="float-card fc-2" data-hero-card="1" aria-hidden="true"></div>
+          <div class="badge" aria-hidden="true">
+            <svg class="badge-spin" viewBox="0 0 120 120" width="100%" height="100%" aria-hidden="true">
+              <defs><path id="ring" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+              <text class="badge-text"><textPath href="#ring" data-t="hero.ring">SELL OUT · 售完即止 · ALBUMS · 專輯 ·</textPath></text>
+            </svg>
+            <span class="badge-num" data-t="hero.badge">3折</span>
+          </div>
         </div>
       </div>
     </section>
+
+    <div class="wrap"><div class="perks" id="perks"></div></div>
 
     <div class="marquee" aria-hidden="true"><div class="track" id="marquee"></div></div>
 
@@ -194,7 +203,7 @@
           </dl>
           <p class="claims" data-s="claims"></p>
         </div>
-        <div class="store-art reveal"><img src="assets/logo-tile.jpg" alt="MH KPOP SELL 標誌，灰色背景" width="900" height="900" loading="lazy"></div>
+        <div class="store-art reveal"><span class="store-ring" aria-hidden="true"></span><img src="assets/logo-tile.jpg" alt="MH KPOP SELL 標誌，灰色背景" width="900" height="900" loading="lazy"></div>
       </div>
     </section>
 
@@ -268,6 +277,8 @@
   <script src="account.js"></script>
   <script src="fx.js"></script>
   <script src="soon-lib.js"></script>
+  <script src="content.js"></script>
+  <script src="shop-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

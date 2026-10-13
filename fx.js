@@ -9,7 +9,7 @@
   if (!reduce) doc.classList.add("fx-on");
 
   // ---------- reveal on scroll ----------
-  var AUTO = [".section-head", ".steps .step", ".info-grid > div", ".faq details", ".order-card", ".order-intro", ".store-wrap > div", ".legal h2", ".mo", ".member-card", ".soon-card", ".promo-card", ".blk-out", ".pay h2", ".ref", ".panel"];
+  var AUTO = [".section-head", ".steps .step", ".info-grid > div", ".faq details", ".order-card", ".order-intro", ".store-wrap > div", ".legal h2", ".mo", ".member-card", ".soon-card", ".promo-card", ".blk-out", ".pay h2", ".ref", ".panel", ".perk", ".pd-info > *", ".rel-grid .card"];
   var seen = typeof WeakSet === "function" ? new WeakSet() : null, io = null;
   function show(el) { el.classList.add("in"); }
   if ("IntersectionObserver" in window && !reduce) {
@@ -65,6 +65,18 @@
       var btn = e.target.closest && e.target.closest(".btn-lg, .nav-actions .btn-solid");
       if (btn && !btn.contains(e.relatedTarget)) btn.style.translate = "";
     });
+  }
+  // the hero logo layers drift towards the pointer
+  var orb = document.querySelector(".orb");
+  if (orb && fine) {
+    var hero = orb.closest(".hero") || orb, raf = 0, nx = 0, ny = 0;
+    hero.addEventListener("pointermove", function (e) {
+      var r = orb.getBoundingClientRect();
+      nx = Math.max(-1, Math.min(1, (e.clientX - r.left - r.width / 2) / r.width));
+      ny = Math.max(-1, Math.min(1, (e.clientY - r.top - r.height / 2) / r.height));
+      if (!raf) raf = requestAnimationFrame(function () { raf = 0; orb.style.setProperty("--tx", nx.toFixed(3)); orb.style.setProperty("--ty", ny.toFixed(3)); });
+    }, { passive: true });
+    hero.addEventListener("pointerleave", function () { orb.style.setProperty("--tx", 0); orb.style.setProperty("--ty", 0); });
   }
   document.addEventListener("pointerdown", function (e) {
     var b = e.target.closest && e.target.closest(".btn:not(:disabled)"); if (!b) return;

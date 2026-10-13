@@ -102,6 +102,10 @@
       "site": "mhkpop",
       "rewrites": [
         {
+          "source": "/product",
+          "destination": "/product.html"
+        },
+        {
           "source": "/soon",
           "destination": "/soon.html"
         },

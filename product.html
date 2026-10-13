@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MHKPOP｜商品</title>
+  <meta name="description" content="將軍澳韓國 K-POP 專輯專賣店。專輯價錢低至市價 3 折，可選順豐到付或門市自取。">
+  <meta property="og:site_name" content="MHKPOP">
+  <meta property="og:image" content="https://mhkpop.web.app/assets/logo-tile.jpg">
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="product.css">
+</head>
+<body>
+  <div class="announce" role="region" aria-label="公告">
+    <ul class="ann-list" id="announce"><li class="ann on"><span data-t="nav.sold">售完即止 · 不設預留</span></li></ul>
+  </div>
+
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="index.html"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <nav class="nav-links">
+        <a href="index.html#shelf" data-t="nav.shelf">價目</a>
+        <a href="index.html#how" data-t="nav.how">購買流程</a>
+        <a href="index.html#info" data-t="nav.info">購買須知</a>
+        <a href="index.html#store" data-t="nav.store">門市</a>
+        <a href="index.html#faq" data-t="nav.faq">問題</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn btn-solid" href="index.html#order" data-t="nav.order">落單表格</a>
+        <button type="button" class="cart-btn" aria-label="購物車"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="cart-count" hidden>0</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap pd-page">
+    <nav class="crumbs" aria-label="位置"><a href="index.html" data-t="prod.home">首頁</a><span aria-hidden="true">/</span><a href="index.html#shelf" data-t="prod.shelf">價目</a><span aria-hidden="true">/</span><span id="pd-crumb"></span></nav>
+    <p class="loading" id="pd-loading" data-t="shelf.loading">正在載入…</p>
+
+    <section id="pd-missing" class="pd-missing" hidden>
+      <div class="cart-empty-disc" aria-hidden="true"></div>
+      <h1 data-t="prod.missing">找不到這件商品，可能已下架。</h1>
+      <a class="btn btn-solid btn-lg" href="index.html#shelf" data-t="prod.back">返回價目</a>
+    </section>
+
+    <article class="pd" id="pd" hidden>
+      <div class="pd-media">
+        <div class="pd-stage" id="pd-stage">
+          <div class="pd-cd" aria-hidden="true"></div>
+          <div class="pd-sleeve" id="pd-sleeve"></div>
+          <span class="tag" id="pd-tag" hidden></span>
+        </div>
+      </div>
+
+      <div class="pd-info">
+        <p class="caps pd-group" id="pd-group"></p>
+        <h1 class="pd-name" id="pd-name"></h1>
+        <div class="pd-price-row"><span class="price pd-price" id="pd-price"></span><span class="pd-save" id="pd-save" hidden></span></div>
+        <div id="pd-chans"></div>
+
+        <div class="pd-buy" id="pd-buy">
+          <div class="pd-opts">
+            <div id="pd-mode-wrap" hidden>
+              <label for="pd-mode" data-t="prod.mode">供應方式</label>
+              <select class="mode" id="pd-mode"><option value="stock" data-t="item.modeStock">格仔舖現貨</option><option value="preorder" data-t="item.modePreorder">訂購（需等待到貨）</option></select>
+            </div>
+            <div>
+              <span class="pd-label" id="pd-qty-label" data-t="prod.qty">數量</span>
+              <div class="qty" role="group" aria-labelledby="pd-qty-label"><button type="button" id="pd-dec" aria-label="−">−</button><output id="pd-qty" aria-live="polite">1</output><button type="button" id="pd-inc" aria-label="+">+</button></div>
+            </div>
+          </div>
+          <div class="pd-actions">
+            <button type="button" class="btn btn-solid btn-lg pd-add" id="pd-add" data-t="cart.add">加入購物車</button>
+            <button type="button" class="btn btn-line btn-lg" id="pd-now" data-t="prod.buy">立即結帳</button>
+          </div>
+        </div>
+        <p class="pd-state" id="pd-state" hidden></p>
+
+        <div class="pd-tabs" id="pd-tabs"></div>
+      </div>
+    </article>
+
+    <section class="related" id="related" hidden>
+      <div class="section-head"><div><p class="caps kicker">MORE</p><h2 data-t="prod.related">你可能都鍾意</h2></div></div>
+      <div class="grid rel-grid" id="rel-grid"></div>
+    </section>
+  </main>
+
+  <div class="pd-bar" id="pd-bar" hidden>
+    <div class="pd-bar-in wrap"><div class="pd-bar-name"><b id="pd-bar-name"></b><span class="price" id="pd-bar-price"></span></div><button type="button" class="btn btn-solid" id="pd-bar-add" data-t="cart.add">加入購物車</button></div>
+  </div>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span class="brand"><img src="assets/logo.png" alt="" width="40" height="39"><span class="caps">MHKPOP</span></span>
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="fx.js"></script>
+  <script src="content.js"></script>
+  <script src="shop-core.js"></script>
+  <script src="product.js"></script>
+</body>
+</html>

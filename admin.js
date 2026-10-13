@@ -6,7 +6,7 @@ import {
 
 import { setupShop } from "./shop.js";
 import { setupMembers } from "./members.js";
-import { setupContent } from "./content.js";
+import { setupContent } from "./admin-content.js";
 import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
 import { setupProofCheck } from "./proofcheck.js";
 
@@ -502,7 +502,7 @@ if (!cfg) {
   let catalog = [], textMap = {}, edits = {}, textsDirty = false, catalogReady = false;
 
   async function loadCatalog() {
-    const pages = ["index.html", "soon.html", "page.html", "pay.html", "me.html", "terms.html", "privacy.html"];
+    const pages = ["index.html", "product.html", "soon.html", "page.html", "pay.html", "me.html", "terms.html", "privacy.html"];
     const items = new Map();
     for (const file of pages) {
       try {
