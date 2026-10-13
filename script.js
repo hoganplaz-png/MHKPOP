@@ -12,11 +12,10 @@
   var money = function (n) { return "HK$" + n; };
   var T = function (k, vars) { return window.MHT.t(k, undefined, vars); };
 
-  // sleeve tones taken from the logo
-  var TONES = [
-    ["#122521", "#FEFDFB"], ["#B4B4B4", "#122521"], ["#2F4A41", "#FEFDFB"], ["#E7E7E3", "#122521"],
-    ["#5E6F68", "#FEFDFB"], ["#CFCFCB", "#122521"], ["#1E3A32", "#FEFDFB"], ["#9A9F9C", "#122521"]
-  ];
+  // product rules, the cart and the sleeve colours are shared with the product page (shop-core.js)
+  var M = window.MHShop;
+  var tracked = M.tracked, priceOf = M.priceOf, priceHtml = M.priceHtml, chOf = M.chOf, hasSource = M.hasSource, defMode = M.defMode;
+  var stockOut = M.stockOut, kindOf = M.kindOf, pendingOrderable = M.pendingOrderable, imgSrc = M.imgSrc, addonAvailable = M.addonAvailable;
 
   // ---------- shop details from settings.js ----------
   var igUrl;
@@ -97,53 +96,11 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   var qty = {};
   var activeGroup = "";
 
-  function kindOf(p) {
-    var s = (p.status || "").toLowerCase();
-    if (s === "hidden" || s.indexOf("隱藏") >= 0) return "hidden";
-    if (s === "pending") return "pending";
-    if (s.indexOf("售罄") >= 0 || s.indexOf("sold") >= 0) return "sold";
-    if (s.indexOf("門市") >= 0 || s.indexOf("store") >= 0) return "store";
-    if (stockOut(p)) return "sold";
-    return "ok";
-  }
-  // a product with a stock number sells out by itself at 0 (pre-order products keep selling)
-  function tracked(p) { return typeof p.stock === "number"; }
-  // sale price (特價) until its last day; products marked 未到貨 can still be pre-ordered when they have the 訂購 option
-  function today() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
-  function priceOf(p) {
-    var sp = p.salePrice;
-    if (sp !== undefined && sp !== null && sp !== "" && isFinite(Number(sp)) && (!p.saleEnds || today() <= p.saleEnds)) return Number(sp);
-    return Number(p.price) || 0;
-  }
-  function priceHtml(p) {
-    var n = priceOf(p), o = Number(p.price) || 0;
-    return n < o ? '<s class="was">' + money(o) + "</s> " + money(n) : money(n);
-  }
-  function pendingOrderable(p) { return kindOf(p) === "pending" && chOf(p).indexOf("preorder") >= 0; }
   function modeFor(i) { return kindOf(products[i]) === "pending" ? "preorder" : (modes[i] || defMode(products[i])); }
-  function stockOut(p) { return tracked(p) && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true); }
   function byId(id) { return allProducts.filter(function (p) { return p.id === id; })[0]; }
   function addonsFor(p) {
     return (p.addons || []).map(function (a) { var t = byId(a.id); return t ? { t: t, price: Number(a.price) || 0 } : null; }).filter(Boolean);
   }
-  function addonAvailable(t) { return (t.status || "") !== "sold" && !stockOut(t); }
-  // How a product can be bought: stock = 格仔舖現貨, preorder = 訂購, sf = 順豐. Older products without a setting get stock + sf.
-  var CH = ["stock", "preorder", "sf"];
-  function chOf(p) {
-    var c = Array.isArray(p.channels) ? p.channels.filter(function (x) { return CH.indexOf(x) >= 0; }) : [];
-    return c.length ? c : ["stock", "sf"];
-  }
-  function hasSource(p) { var c = chOf(p); return c.indexOf("stock") >= 0 || c.indexOf("preorder") >= 0; }
-  function defMode(p) { var c = chOf(p); return c.indexOf("stock") >= 0 ? "stock" : c.indexOf("preorder") >= 0 ? "preorder" : "sf"; }
-  function chanBadges(p) {
-    var h = chOf(p).map(function (c) { return '<span class="chan chan-' + c + '">' + esc(T("chan." + c)) + "</span>"; }).join("");
-    if (chOf(p).indexOf("preorder") >= 0 && p.eta) h += '<span class="eta">' + esc(T("chan.eta", { eta: p.eta })) + "</span>";
-    if (tracked(p) && p.stock > 0 && p.stock <= 5 && chOf(p).indexOf("stock") >= 0) h += '<span class="eta low">' + esc(T("shelf.left", { n: p.stock })) + "</span>";
-    var ad = addonsFor(p).filter(function (a) { return addonAvailable(a.t); });
-    return '<div class="chans">' + h + "</div>" + (ad.length ? '<div class="addon-note">' + ad.map(function (a) { return esc(T("addon.card", { name: a.t.name, price: a.price })); }).join("<br>") + "</div>" : "");
-  }
-  function imgSrc(v) { return /^(https?:)?\/\//.test(v) || v.charAt(0) === "/" || /^data:image\/(jpeg|png|webp);base64,/.test(v) ? v : "images/" + v; }
-
   function loadProducts() {
     var fallback = function () { return (S.defaultProducts || []).slice(); };
     if (!S.sheetCsvUrl) return Promise.resolve(fallback());
@@ -166,23 +123,9 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   }
 
   function renderCards() {
-    $("#grid").innerHTML = products.map(function (p, i) {
-      if (activeGroup && p.group !== activeGroup) return "";
-      var k = kindOf(p), tone = TONES[i % TONES.length];
-      var sleeve = p.image
-        ? '<img src="' + esc(imgSrc(p.image)) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">'
-        : '<div class="sleeve-ph"><span class="caps">MHKPOP</span><b>' + esc(p.group) + "</b></div>";
-      var tag = k === "sold" ? T("shelf.soldTag") : k === "pending" ? T("shelf.pendingTag") : priceOf(p) < (Number(p.price) || 0) ? T("shelf.saleTag") : p.tag;
-      var foot = k === "sold" ? '<span class="state">' + esc(T("shelf.soldFoot")) + "</span>"
-        : k === "pending" && !pendingOrderable(p) ? '<span class="state">' + esc(T("shelf.pendingFoot")) + "</span>"
-        : k === "store" ? '<span class="state">' + esc(T("shelf.storeFoot")) + "</span>"
-        : '<a href="#order">' + esc(T("shelf.orderLink")) + "</a>";
-      return '<article class="card reveal' + (k === "sold" ? " is-sold" : "") + (k === "pending" ? " is-pending" : "") + '">' +
-        '<div class="stage"><div class="cd"></div>' +
-        '<div class="sleeve" style="background:' + tone[0] + ";color:" + tone[1] + '">' + sleeve + "</div>" +
-        (tag ? '<span class="tag">' + esc(tag) + "</span>" : "") + "</div>" +
-        '<div class="card-body"><div class="card-group caps">' + esc(p.group) + '</div><div class="card-name">' + esc(p.name) + "</div>" + chanBadges(p) + "</div>" +
-        '<div class="card-foot"><span class="price">' + priceHtml(p) + "</span>" + foot + "</div></article>";
+    var shown = 0;
+    $("#grid").innerHTML = products.map(function (p) {
+      return activeGroup && p.group !== activeGroup ? "" : M.cardHtml(p, shown++);
     }).join("");
   }
 
@@ -214,8 +157,25 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
         '<small class="chan-line">' + esc(line) + "</small>" + modeSel + "</div>" +
         '<div class="item-price">' + priceHtml(p) + "</div>" + control + '<div class="addons" id="ad' + i + '"></div></div>';
     }).join("");
-    qty = {}; modes = {}; addonQty = {}; updateTotal(); syncDelivery();
+    qty = {}; modes = {}; addonQty = {}; fromCart(); updateTotal(); syncDelivery();
   }
+
+  // The order form and the cart are the same list: changes in one show in the other.
+  function fromCart() {
+    products.forEach(function (p, i) {
+      var q = M.cart.qty(p.id), m = M.cart.mode(p.id), o = $("#q" + i), sel = $('select[data-m="' + i + '"]');
+      if (!o) return;
+      if (m && sel) { modes[i] = m; sel.value = m; }
+      if ((qty[i] || 0) === q) return;
+      qty[i] = q; o.textContent = q;
+      trimAddons(i); renderAddons(i);
+    });
+  }
+  M.cart.onChange(function (from) {
+    if (from === "form") return;
+    fromCart(); updateTotal(); syncDelivery();
+  });
+  function toCart(i) { M.cart.set(products[i].id, qty[i] || 0, modeFor(i), "form"); }
 
   // units of a product already in the order (as itself or as an add-on)
   function usedOf(pid) {
@@ -257,12 +217,14 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
     if (dd > 0 && !canAdd(products[i], modeFor(i))) return showError(T("err.stock", { name: products[i].name, n: Math.max(products[i].stock, 0) }));
     qty[i] = Math.max(0, (qty[i] || 0) + dd);
     $("#q" + i).textContent = qty[i];
+    toCart(i);
     trimAddons(i); renderAddons(i);
     errorEl.hidden = true; updateTotal(); syncDelivery();
   });
   $("#items").addEventListener("change", function (e) {
     var sel = e.target.closest("select[data-m]"); if (!sel) return;
     modes[+sel.dataset.m] = sel.value;
+    if (qty[+sel.dataset.m]) toCart(+sel.dataset.m);
   });
 
   function chosen() {
@@ -382,6 +344,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
       try {
         sessionStorage.setItem("mh-order", JSON.stringify({ orderNo: o.orderNo, total: o.total, contact: o.contact, delivery: o.delivery, items: o.items }));
       } catch (e) { /* the payment page also reads the order number and amount from the address */ }
+      M.cart.clear();
       location.href = "pay.html?o=" + encodeURIComponent(o.orderNo) + "&t=" + o.total;
     }).catch(function (err) {
       review.close();
@@ -443,7 +406,8 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
     if (remote && remote.products && remote.products.length) return remote.products;
     return loadProducts();
   }).then(function (list) {
-    allProducts = list;
+    allProducts = M.setProducts(list);
+    list = allProducts;
     products = list.filter(function (p) { return kindOf(p) !== "hidden"; });
     $("#loading").hidden = true;
     renderChips(); renderCards(); renderItems();
