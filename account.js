@@ -38,7 +38,7 @@
         var first = true;
         c.au.onAuthStateChanged(c.auth, function (u) {
           A.user = u || null;
-          if (u) ensureMember(c, u);
+          if (u && u.emailVerified) ensureMember(c, u);
           notify();
           if (first) { first = false; resolve(); if (location.hash === "#login" && !u) A.open("in"); }
         });
@@ -72,11 +72,35 @@
       $("#acct-title").textContent = T("acct.title.me");
       $("#acct-me").textContent = A.user.displayName ? A.user.displayName + " · " + A.user.email : A.user.email;
       $("#acct-verify").hidden = !!A.user.emailVerified;
+      verifyTools(!A.user.emailVerified);
     } else {
       $("#acct-out").hidden = false; $("#acct-in").hidden = true;
       setMode(m || "in");
     }
     if (!dlg.open) dlg.showModal();
+  }
+  // Unverified accounts can browse but not order, so offer "send again" and "I have verified" right in the dialog.
+  function verifyTools(show) {
+    var box = $("#acct-verify-tools");
+    if (!box) {
+      box = document.createElement("div"); box.id = "acct-verify-tools";
+      var again = document.createElement("button"); again.type = "button"; again.className = "btn btn-line"; again.textContent = T("acct.verify.resend");
+      var done = document.createElement("button"); done.type = "button"; done.className = "btn btn-solid"; done.textContent = T("acct.verify.done");
+      box.appendChild(done); box.appendChild(again);
+      $("#acct-verify").insertAdjacentElement("afterend", box);
+      again.addEventListener("click", function () {
+        if (!client || !A.user) return;
+        client.au.sendEmailVerification(A.user).then(function () { again.textContent = T("acct.verify.sent"); }, function () { again.textContent = T("acct.err.many"); });
+      });
+      done.addEventListener("click", function () {
+        if (!client || !A.user) return;
+        A.user.reload().then(function () { return A.user.getIdToken(true); }).then(function () {
+          A.user = client.auth.currentUser;
+          if (A.user.emailVerified) { ensureMember(client, A.user); notify(); open(); } else { done.textContent = T("acct.verify.notyet"); }
+        }).catch(function () { done.textContent = T("acct.err.net"); });
+      });
+    }
+    box.hidden = !show;
   }
   A.open = open;
   A.close = function () { if (dlg.open) dlg.close(); };

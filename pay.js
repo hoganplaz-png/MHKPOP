@@ -35,14 +35,23 @@
   paintOrder();
 
   // ---------- shop details and payment methods (admin page content, with built-in fallback) ----------
+  var needLogin = false;
   function loadRemote() {
     var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, 6000); });
     var work = window.MHFB.load().then(function (c) {
       if (!c) return null;
       var fs = c.fs, db = c.db;
+      // Payment details (QR codes, account names) are only readable by signed-in customers, so wait for sign-in first.
+      var authP = new Promise(function (resolve) {
+        var off = c.au.onAuthStateChanged(c.auth, function (u) { off(); resolve(u); });
+        setTimeout(function () { resolve(c.auth.currentUser); }, 4000);
+      });
       return Promise.all([
         fs.getDoc(fs.doc(db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
-        fs.getDocs(fs.query(fs.collection(db, "payments"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; })
+        authP.then(function (u) {
+          if (!u || !u.emailVerified) { needLogin = true; return null; }
+          return fs.getDocs(fs.query(fs.collection(db, "payments"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; });
+        })
       ]).then(function (r) { return { site: r[0], payments: r[1] }; });
     }).catch(function () { return null; });
     return Promise.race([work, timeout]);
@@ -73,7 +82,12 @@
       return '<button type="button" class="method" data-i="' + i + '" aria-pressed="' + (i === current) + '">' + esc(m.name) + "</button>";
     }).join("");
     var m = methods[current], html = "";
-    if (!m) { $("#panel").innerHTML = "<p>" + esc(T("pay.none")) + "</p>"; return; }
+    if (!m) {
+      $("#panel").innerHTML = needLogin
+        ? "<p>" + esc(T("pay.needLogin")) + ' <a href="/checkout.html">' + esc(T("pay.proof.loginLink")) + "</a></p>"
+        : "<p>" + esc(T("pay.none")) + "</p>";
+      return;
+    }
     if (m.type === "qr" && imgSrc(m.image)) {
       html += '<img class="qr" src="' + esc(imgSrc(m.image)) + '" alt="' + esc(T("pay.qrAlt", { name: m.name })) + '">';
     }
@@ -103,7 +117,7 @@
     $("#pay-note").textContent = note; $("#pay-note").hidden = !note;
     var ig = (site && site.instagram) || S.instagram;
     document.querySelectorAll("[data-s-ig]").forEach(function (a) { a.href = "https://www.instagram.com/" + ig + "/"; a.textContent = "@" + ig; });
-    var list = remote && remote.payments && remote.payments.length ? remote.payments : (S.defaultPayments || []);
+    var list = remote && remote.payments && remote.payments.length ? remote.payments : (needLogin ? [] : (S.defaultPayments || []));
     methods = list.filter(function (m) { return m.enabled !== false; });
     render();
   }
