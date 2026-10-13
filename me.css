@@ -55,3 +55,13 @@
 .me-alert { margin: var(--space-3, 16px) 0; padding: 12px 16px; border-radius: var(--r-card, 12px); background: var(--accent); color: var(--accent-ink); animation: me-alert-in .4s var(--ease, ease-out); }
 @keyframes me-alert-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .me-alert { animation: none; } }
+
+.rewards { margin-top: 32px; }
+.rw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 14px; }
+.rw-card { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--cream); transition: transform .25s ease, box-shadow .25s ease; }
+.rw-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+.rw-card b { font-size: 17px; }
+.rw-pts { color: var(--muted); font-size: 14px; }
+.rw-card .btn { margin-top: auto; }
+.rw-card.is-short .btn { opacity: .55; }
+@media (prefers-reduced-motion: reduce) { .rw-card { transition: none; } .rw-card:hover { transform: none; } }

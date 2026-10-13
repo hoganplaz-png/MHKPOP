@@ -352,7 +352,7 @@ export function setupShop(ctx) {
       const r = buildItems({ name: dn(i.group, i.name), qty: Number(i.qty) || 0, price: Number(i.price) || 0, addon: !!i.addon }, env);
       items.push(...r.items); Object.entries(r.delta).forEach(([pid, q]) => { deltas[pid] = (deltas[pid] || 0) + q; });
     });
-    return { id: saleIdOf(o), deltas, data: { date: dateOf(o.createdAt), time: timeOf(o.createdAt), receipt: o.orderNo, payment: "網站訂單", source: "web", items, total: Number(o.total) || 0, discount: 0, orderNo: o.orderNo, note: "", createdAt: serverTimestamp() } };
+    return { id: saleIdOf(o), deltas, data: { date: dateOf(o.createdAt), time: timeOf(o.createdAt), receipt: o.orderNo, payment: "網站訂單", source: "web", items, total: Number(o.total) || 0, discount: Number(o.discount) || 0, orderNo: o.orderNo, note: "", createdAt: serverTimestamp() } };
   }
   function pendingWebOrders() {
     const have = new Set(sales.map((s) => s.id));

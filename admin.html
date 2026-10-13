@@ -54,6 +54,8 @@
         <button type="button" role="tab" class="tab" id="t-expenses" data-tab="expenses" aria-selected="false" aria-controls="p-expenses">租金及開支</button>
         <button type="button" role="tab" class="tab" id="t-profit" data-tab="profit" aria-selected="false" aria-controls="p-profit">利潤</button>
         <button type="button" role="tab" class="tab" id="t-members" data-tab="members" aria-selected="false" aria-controls="p-members">會員</button>
+        <button type="button" role="tab" class="tab" id="t-rewards" data-tab="rewards" aria-selected="false" aria-controls="p-rewards">兌換 <span class="count" id="rd-count"></span></button>
+        <button type="button" role="tab" class="tab" id="t-codes" data-tab="codes" aria-selected="false" aria-controls="p-codes">優惠碼</button>
       </div>
 
       <!-- 訂單 -->
@@ -269,6 +271,55 @@
         <div class="stat-row" id="mb-stats"></div>
         <p class="empty" id="mb-empty" hidden>未有會員。客人註冊帳戶並登入後會出現在這裡。</p>
         <div id="mb-list"></div>
+      </section>
+
+      <!-- 兌換 -->
+      <section id="p-rewards" role="tabpanel" aria-labelledby="t-rewards" hidden>
+        <p class="hint">選擇客人可以用會員積分兌換的商品。客人在「我的會員及訂單」頁按兌換，積分會即時扣除，下面會出現一筆待處理的兌換，你交收後按「已交收」；如要取消，按「取消並退分」。</p>
+        <form id="rw-form" class="card-box">
+          <div class="grid2">
+            <div><label for="rw-product">由商品清單選擇</label><select id="rw-product" class="field"></select></div>
+            <div><label for="rw-name">兌換商品名稱</label><input id="rw-name" class="field" maxlength="100" required></div>
+          </div>
+          <label for="rw-points">所需積分</label>
+          <input id="rw-points" class="field" type="number" min="1" step="1" inputmode="numeric" required style="max-width:200px">
+          <p class="error" id="rw-error" role="alert" hidden></p>
+          <div class="save-row"><button type="submit" class="btn btn-solid">加入兌換商品</button></div>
+        </form>
+        <p class="empty" id="rw-empty" hidden>未有兌換商品。</p>
+        <div id="rw-list"></div>
+        <h3 class="sub">客人提交的兌換</h3>
+        <p class="empty" id="rd-empty" hidden>未有兌換紀錄。</p>
+        <div id="rd-list"></div>
+      </section>
+
+      <!-- 優惠碼 -->
+      <section id="p-codes" role="tabpanel" aria-labelledby="t-codes" hidden>
+        <p class="hint">為不同客人建立不同的優惠碼。優惠碼不會顯示在網站，客人要自己輸入；只有管理員可以看到清單。客人在結帳頁輸入後自動計算折扣。</p>
+        <form id="cd-form" class="card-box">
+          <div class="grid2">
+            <div><label for="cd-code">優惠碼</label><div class="inline-row"><input id="cd-code" class="field" maxlength="24" autocomplete="off" required><button type="button" class="btn btn-line" id="cd-gen">隨機產生</button></div></div>
+            <div><label for="cd-note">給誰／備註（只有你看到）</label><input id="cd-note" class="field" maxlength="100"></div>
+          </div>
+          <div class="grid2">
+            <div><label for="cd-type">折扣類型</label><select id="cd-type" class="field"><option value="percent">百分比（%）</option><option value="amount">固定金額（HK$）</option></select></div>
+            <div><label for="cd-value">折扣數值</label><input id="cd-value" class="field" type="number" min="0.01" step="any" inputmode="decimal" required></div>
+          </div>
+          <div class="grid2">
+            <div><label for="cd-exp">到期日（選填）</label><input id="cd-exp" class="field" type="date"></div>
+            <div><label for="cd-min">最低消費 HK$（選填）</label><input id="cd-min" class="field" type="number" min="0" step="1" inputmode="numeric"></div>
+          </div>
+          <div class="grid2">
+            <div><label for="cd-max">總使用次數上限（選填）</label><input id="cd-max" class="field" type="number" min="0" step="1" inputmode="numeric"></div>
+            <div><label for="cd-per">每位客人可用次數（選填）</label><input id="cd-per" class="field" type="number" min="0" step="1" inputmode="numeric"></div>
+          </div>
+          <label for="cd-email">只限這個帳戶電郵使用（選填）</label>
+          <input id="cd-email" class="field" type="email" maxlength="200">
+          <p class="error" id="cd-error" role="alert" hidden></p>
+          <div class="save-row"><button type="submit" class="btn btn-solid">建立優惠碼</button></div>
+        </form>
+        <p class="empty" id="cd-empty" hidden>未有優惠碼。</p>
+        <div id="cd-list"></div>
       </section>
 
       <!-- 即將發售 -->

@@ -6,6 +6,7 @@ import {
 
 import { setupShop } from "./shop.js";
 import { setupMembers } from "./members.js";
+import { setupPerks } from "./perks.js";
 import { setupContent } from "./admin-content.js";
 import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
 import { setupProofCheck } from "./proofcheck.js";
@@ -38,6 +39,11 @@ if (!cfg) {
     db, $, esc, notice,
     fb: { collection, doc, onSnapshot, query, orderBy, setDoc, updateDoc, writeBatch, serverTimestamp, increment }
   });
+  const perks = setupPerks({
+    db, $, esc, notice,
+    fb: { collection, doc, onSnapshot, query, orderBy, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment },
+    getWebProducts: () => products, getOrders: () => orders
+  });
   const content = setupContent({
     db, $, esc, notice, shrink: (f, side) => shrink(f, side),
     fb: { collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, deleteField },
@@ -60,7 +66,7 @@ if (!cfg) {
   };
 
   onAuthStateChanged(auth, (user) => {
-    stopAll(); shop.stop(); members.stop(); content.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
+    stopAll(); shop.stop(); members.stop(); perks.stop(); content.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
     if (!user) {
       $("#login").hidden = false; $("#app").hidden = true; $("#who").hidden = true;
       return;
@@ -68,9 +74,9 @@ if (!cfg) {
     $("#login").hidden = true; $("#app").hidden = false; $("#who").hidden = false;
     $("#who-email").textContent = user.email;
     notice("");
-    shop.start(); members.start(); content.start();
+    shop.start(); members.start(); perks.start(); content.start();
     unsubs.push(onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")),
-      (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); shop.ordersChanged(); }, denied));
+      (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); shop.ordersChanged(); perks.ordersChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
       (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); shop.productsChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "proofs"), orderBy("createdAt", "desc")),
@@ -192,7 +198,8 @@ if (!cfg) {
     $("#orders").innerHTML = list.map((o) => {
       const items = (o.items || []).map((i) => "<li><span>" + esc(dn(i.group, i.name)) + " × " + esc(i.qty) + (i.mode && CHANNELS[i.mode] ? ' <span class="o-mode">· ' + CHANNELS[i.mode] + "</span>" : "") + "</span><span>" + money(i.price * i.qty) + "</span></li>").join("");
       const sum = (o.items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
-      const warn = sum !== o.total ? '<p class="o-warn">⚠ 總額 ' + money(o.total) + " 與貨品加起來的 " + money(sum) + " 不符，請小心核對，不要確認。</p>" : "";
+      const disc = Number(o.discount) || 0;
+      const warn = sum - disc !== o.total ? '<p class="o-warn">⚠ 總額 ' + money(o.total) + " 與貨品加起來的 " + money(sum - disc) + "（已扣優惠）不符，請小心核對，不要確認。</p>" : "";
       const opts = Object.keys(ORDER_STATUS).map((k) => '<option value="' + k + '"' + (o.status === k ? " selected" : "") + ">" + ORDER_STATUS[k] + "</option>").join("");
       return '<article class="order is-' + esc(o.status) + '">' +
         '<div class="o-head"><div><div class="o-no">' + esc(o.orderNo) + '</div><div class="o-time">' + esc(fmt(o)) + "</div></div>" +
@@ -201,7 +208,7 @@ if (!cfg) {
         (o.email ? "<div><dt>帳戶電郵</dt><dd>" + esc(o.email) + "</dd></div>" : "") + "<div><dt>交收方式</dt><dd>" + esc(o.delivery) + "</dd></div>" +
         (o.address ? "<div><dt>地址</dt><dd>" + esc(o.address) + "</dd></div>" : "") +
         (o.notes ? "<div><dt>備註</dt><dd>" + esc(o.notes) + "</dd></div>" : "") + "</dl>" +
-        '<ul class="o-items">' + items + '</ul><div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" + warn +
+        '<ul class="o-items">' + items + '</ul>' + (disc ? '<div class="o-total"><span>優惠碼 ' + esc(o.code || "") + '</span><span>−' + money(disc) + "</span></div>" : "") + '<div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" + warn +
         trackHtml(o) + proofHtml(o) + '<div class="o-del"><button type="button" class="btn btn-line" data-del-order="' + esc(o.id) + '">刪除訂單</button><span class="saving" aria-live="polite"></span></div></article>';
     }).join("");
   }

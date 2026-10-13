@@ -37,12 +37,15 @@
       fs.getDoc(fs.doc(db, "members", user.uid)).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
       fs.getDocs(fs.query(fs.collection(db, "orders"), fs.where("uid", "==", user.uid))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
       fs.getDocs(fs.query(fs.collection(db, "pointlogs"), fs.where("uid", "==", user.uid))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
+      fs.getDocs(fs.query(fs.collection(db, "rewards"), fs.where("active", "==", true))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
+      fs.getDocs(fs.query(fs.collection(db, "redemptions"), fs.where("uid", "==", user.uid))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
       fs.getDoc(fs.doc(db, "settings", "member")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
       import("./shoplib.js"),
       window.MHT.init()
     ]).then(function (r) {
-      render(user, r[0], r[1], r[2], r[3], r[4]);
-      watchOrders(user, r[1], r[4]);
+      render(user, r[0], r[1], r[2], r[5], r[6]);
+      renderRewards(user, r[0], r[3], r[4]);
+      watchOrders(user, r[1], r[6]);
     });
   }
 
@@ -126,6 +129,34 @@
     }).join("");
     show("app");
   }
+
+  // ---------- redeem points for products ----------
+  var RW = { user: null, points: 0, rewards: [], mine: [] };
+  function rwMsg(t, bad) { var m = $("#rw-msg"); m.textContent = t || ""; m.hidden = !t; m.style.color = bad ? "" : "inherit"; }
+  function renderRewards(user, member, rewards, mine) {
+    RW.user = user; RW.points = member ? Number(member.points) || 0 : 0; RW.rewards = rewards; RW.mine = mine;
+    rewards.sort(function (a, b) { return (a.points || 0) - (b.points || 0); });
+    $("#me-rewards").hidden = !rewards.length && !mine.length;
+    $("#rw-grid").innerHTML = rewards.map(function (r) {
+      var ok = RW.points >= r.points;
+      return '<div class="rw-card' + (ok ? "" : " is-short") + '"><b>' + esc(r.name) + '</b><span class="rw-pts">' + esc(T("me.rw.need", { n: r.points })) + '</span><button type="button" class="btn ' + (ok ? "btn-solid" : "btn-line") + '" data-rw="' + esc(r.id) + '"' + (ok ? "" : " disabled") + ">" + esc(ok ? T("me.rw.btn") : T("me.rw.short")) + "</button></div>";
+    }).join("");
+    mine.sort(function (a, b) { return ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0); });
+    $("#rw-mine-box").hidden = !mine.length;
+    $("#rw-mine").innerHTML = mine.map(function (m) { return '<div class="pl-row"><b>−' + esc(m.points) + "</b><span>" + esc(m.name) + " · " + esc(T("me.rw.s." + m.status, m.status)) + '</span><span class="mo-date">' + esc(fmt(m.createdAt)) + "</span></div>"; }).join("");
+  }
+  $("#rw-grid").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-rw]"); if (!b || b.disabled || !RW.user) return;
+    var r = RW.rewards.filter(function (x) { return x.id === b.dataset.rw; })[0]; if (!r) return;
+    if (!window.confirm(T("me.rw.confirm", { n: r.points, name: r.name }))) return;
+    var fs = client.fs, db = client.db, u = RW.user, rid = "rd-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    var batch = fs.writeBatch(db);
+    batch.set(fs.doc(db, "redemptions", rid), { uid: u.uid, email: u.email || "", rewardId: r.id, name: r.name, points: r.points, status: "new", createdAt: fs.serverTimestamp() });
+    batch.update(fs.doc(db, "members", u.uid), { points: fs.increment(-r.points), lastRedeem: rid, updatedAt: fs.serverTimestamp() });
+    batch.set(fs.doc(db, "pointlogs", "redeem-" + rid), { uid: u.uid, points: -r.points, type: "redeem", note: "兌換：" + r.name, createdAt: fs.serverTimestamp() });
+    document.querySelectorAll("#rw-grid button").forEach(function (x) { x.disabled = true; });
+    batch.commit().then(function () { rwMsg(T("me.rw.done")); load(u); }).catch(function () { rwMsg(T("me.rw.fail"), true); renderRewards(u, { points: RW.points }, RW.rewards, RW.mine); });
+  });
 
   function orderHtml(o, L) {
     var st = L.orderSteps(o), items = (o.items || []).map(function (i) {

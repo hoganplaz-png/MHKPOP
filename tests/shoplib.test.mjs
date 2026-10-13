@@ -38,3 +38,23 @@ assert.equal(pre.cogs, 60);
 assert.equal(pre.unknownItems, 0);
 assert.equal(pre.guessedItems, 1);
 console.log("pre-order cost test passed");
+
+// ---------- discount codes ----------
+{
+  const { evalCode, codeId, normCode } = await import("../shoplib.js");
+  assert.equal(normCode(" vip 10 "), "VIP10");
+  assert.equal(await codeId("vip10"), await codeId(" VIP10 "));
+  assert.equal((await codeId("a")).length, 64);
+  const base = { type: "percent", value: 10, active: true };
+  assert.equal(evalCode(base, 500, "a@b.c", 0, "2026-10-13").discount, 50);
+  assert.equal(evalCode({ ...base, type: "amount", value: 800 }, 500, "a@b.c", 0, "2026-10-13").discount, 500);
+  assert.equal(evalCode({ ...base, expires: "2026-10-12" }, 500, "a@b.c", 0, "2026-10-13").reason, "expired");
+  assert.equal(evalCode({ ...base, expires: "2026-10-13" }, 500, "a@b.c", 0, "2026-10-13").ok, true);
+  assert.equal(evalCode({ ...base, maxUses: 2, used: 2 }, 500, "a@b.c", 0, "2026-10-13").reason, "used-up");
+  assert.equal(evalCode({ ...base, perCustomer: 1 }, 500, "a@b.c", 1, "2026-10-13").reason, "mine");
+  assert.equal(evalCode({ ...base, email: "X@y.com" }, 500, "a@b.c", 0, "2026-10-13").ok, false);
+  assert.equal(evalCode({ ...base, email: "X@y.com" }, 500, "x@Y.com", 0, "2026-10-13").ok, true);
+  assert.equal(evalCode({ ...base, minSpend: 600 }, 500, "a@b.c", 0, "2026-10-13").reason, "min");
+  assert.equal(evalCode({ ...base, active: false }, 500, "a@b.c", 0, "2026-10-13").ok, false);
+  console.log("discount code tests passed");
+}
