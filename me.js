@@ -42,7 +42,61 @@
       window.MHT.init()
     ]).then(function (r) {
       render(user, r[0], r[1], r[2], r[3], r[4]);
+      watchOrders(user, r[1], r[4]);
     });
+  }
+
+  // ---------- live progress and "new update" alerts ----------
+  var unwatch = null;
+  function seenKey(user) { return "mh-seen-" + user.uid; }
+  function readSeen(user) { try { return JSON.parse(localStorage.getItem(seenKey(user)) || "{}") || {}; } catch (e) { return {}; } }
+  function writeSeen(user, m) { try { localStorage.setItem(seenKey(user), JSON.stringify(m)); } catch (e) { /* private mode */ } }
+
+  function watchOrders(user, first, L) {
+    var fs = client.fs, seen = readSeen(user), baseline = Object.keys(seen).length > 0;
+    if (unwatch) unwatch();
+    function check(orders) {
+      var changed = [];
+      orders.forEach(function (o) {
+        var k = L.progressKey(o);
+        if (baseline && seen[o.orderNo] !== k) changed.push({ o: o, k: k });
+        seen[o.orderNo] = k;
+      });
+      baseline = true; writeSeen(user, seen);
+      return changed;
+    }
+    // first load only records what the customer is looking at now; later changes raise an alert
+    check(first);
+    unwatch = fs.onSnapshot(fs.query(fs.collection(client.db, "orders"), fs.where("uid", "==", user.uid)), function (q) {
+      var orders = q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      orders.sort(function (a, b) { return ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0); });
+      var changed = check(orders);
+      $("#me-empty").hidden = orders.length > 0;
+      $("#me-orders").innerHTML = orders.map(function (o) { return orderHtml(o, L); }).join("");
+      if (changed.length) announce(changed, L);
+    }, function () { /* keep the page as loaded */ });
+    setupAsk();
+  }
+  function stageText(k, L) {
+    if (k === "cancelled") return T("me.cancelled");
+    var hit = L.PROGRESS.filter(function (p) { return p[0] === k; })[0];
+    return T("prog." + k, hit ? hit[1] : k);
+  }
+  function announce(changed, L) {
+    var lines = changed.map(function (c) { return c.o.orderNo + "：" + stageText(c.k, L); });
+    var box = $("#me-alert");
+    box.innerHTML = "<b>" + esc(T("me.alert")) + "</b> " + lines.map(esc).join("；");
+    box.hidden = false;
+    document.title = "(" + changed.length + ") " + document.title.replace(/^\(\d+\) /, "");
+    if (window.Notification && Notification.permission === "granted") {
+      try { new Notification(T("me.alert"), { body: lines.join("\n"), icon: "assets/logo.png" }); } catch (e) { /* some browsers only allow this from a service worker */ }
+    }
+  }
+  function setupAsk() {
+    var b = $("#me-notify");
+    if (!window.Notification || Notification.permission !== "default") { b.hidden = true; return; }
+    b.hidden = false;
+    b.onclick = function () { Notification.requestPermission().then(function () { b.hidden = true; }); };
   }
 
   function render(user, member, orders, logs, settingsRaw, L) {

@@ -37,6 +37,8 @@ The shop-management data (`purchases`, `sales`, `expenses`) can only be read or 
 ## Order progress, membership page
 Each order card on the **訂單** tab has 訂單進度 (已收到訂單 → 已確認收款 → 訂購中／備貨中 → 貨品已到 → 已寄出 or 可到門市取貨 → 已完成), an SF tracking number and a note for the customer. Customers see this on **我的會員及訂單** (`/me`): their tier, points, spending, every order with a timeline (pre-order orders show the ordering and arrived steps), the tracking number and the note. Setting an order to 已確認 also records the sale (stock goes down) and adds the member's points.
 
+On that page the progress updates live. While the page is open, a new step (for example 已寄出) shows a banner and the tab title gets a number; the customer can also press 開啟訂單通知 to get a browser notification. Nothing is sent when the page is closed (that would need a paid server or email service).
+
 ## How ordering and payment work
 The checkout has four steps, shown as a progress bar at the top:
 1. **購物車 (Cart)** (`checkout.html`): the customer checks the items, changes quantities, picks 現貨/訂購 and ticks add-ons. An order summary stays beside it.
