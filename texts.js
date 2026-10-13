@@ -47,6 +47,8 @@
     "me.address": "收件地址",
     "me.contact": "聯絡方式",
     "me.notes": "備註",
+    "me.alert": "訂單有新進度",
+    "me.notify": "開啟訂單通知（網頁開著時提醒你）",
     "me.pay": "前往付款",
     "me.tracking": "順豐單號",
     "prog.received": "已收到訂單",
