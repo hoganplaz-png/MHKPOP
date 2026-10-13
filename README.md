@@ -45,7 +45,23 @@ Each order card on the **訂單** tab has 訂單進度 (已收到訂單 → 已�
 4. The customer can upload a payment screenshot on the payment page. It is saved for you only and shows inside the order on the admin page (filter: 有付款截圖).
 5. The order appears in the admin page as 新訂單. Check the amount and the order number in your PayMe or Alipay app, then change it to 已確認.
 
-Personal PayMe and Alipay QR codes cannot be checked automatically. Automatic confirmation needs a business account with an API (PayMe for Business, Alipay merchant, or Stripe) and a small server, so it is a separate project.
+### Automatic payment screenshot check
+When you open the 訂單 tab, the admin page reads every payment screenshot (English and Traditional Chinese) and compares it with its order. Under each screenshot it shows **自動核對：相符** (green) or **自動核對：需人手核對** (red) with the reasons, and the filter **需人手核對** lists only the orders that need a look.
+
+| Check | Passes when | Otherwise |
+|---|---|---|
+| 金額 | a money amount on the screenshot (HK$, $, HKD, or a number with two decimals) equals the order total | flagged, showing the amount it found |
+| 付款日期 | the payment date is on or after the order date and not after the upload date | flagged, e.g. an old screenshot from before the order |
+| 訂單編號 | the order number appears on the screenshot (for example in the PayMe message) | shown for information only, since many customers leave the message empty |
+| 重用截圖 | — | flagged when the same image, or the same transaction number, was already uploaded for another order (only the later upload is flagged) |
+
+Limits:
+- It never confirms an order by itself. A screenshot can be edited, so a green result means "the screenshot matches", not "the money arrived". Still check your PayMe or Alipay app before pressing 已確認.
+- The reading happens in your browser (no outside service; the reader is in `vendor/tesseract`). The first time it downloads about 6 MB, then a few seconds per screenshot. Results are remembered in that browser, so another computer reads the screenshots again.
+- Blurry photos of a screen, cropped screenshots, or unusual date formats can fail to read. Those are flagged 需人手核對, never passed. You can open the screenshot to see the text it read, and press 再試 if reading failed.
+- The order total does not include SF shipping (順豐到付), so the amount check expects the goods total only.
+
+Personal PayMe and Alipay QR codes cannot be checked automatically against your account. Automatic confirmation needs a business account with an API (PayMe for Business, Alipay merchant, or Stripe) and a small server, so it is a separate project.
 
 For link methods, `{amount}` and `{order}` in the link are filled in automatically, for example `https://paypal.me/yourname/{amount}HKD`.
 
@@ -58,7 +74,7 @@ For link methods, `{amount}` and `{order}` in the link are filled in automatical
 - Only the admin email can change the wording of the website (`settings/texts`).
 
 ## Security
-- `firebase.json` sends strict security headers on every page: Content-Security-Policy (only this site and Google Firebase scripts, fonts and connections), HSTS, no framing (clickjacking), no MIME sniffing, a tight Referrer-Policy and Permissions-Policy.
+- `firebase.json` sends strict security headers on every page: Content-Security-Policy (only this site and Google Firebase scripts, fonts and connections) (it also allows WebAssembly from this site, which the payment screenshot reader needs), HSTS, no framing (clickjacking), no MIME sniffing, a tight Referrer-Policy and Permissions-Policy.
 - Customer text is always escaped before it is shown, so a customer cannot inject code into your admin page.
 - The admin page only works for the admin email; other accounts see a "no permission" message and no data.
 - Not covered: the total of an order is calculated in the browser. The admin page warns when an order total does not match its items. Firebase **App Check** (reCAPTCHA) can be added later against automated spam.
@@ -77,6 +93,7 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 - `account.js`: customer sign-up and sign-in. `fb.js`: loads Firebase. `texts.js`: the editable-wording system
 - `pay.html`, `pay.js`, `pay.css`: the payment page
 - `terms.html`, `privacy.html`, `legal.css`, `legal.js`: Terms of Service and Privacy Policy
+- `content.js`: the 即將發售 and 活動頁面 tabs. `soon.html`, `soon.js`, `soon-lib.js`: the coming-soon page. `page.html`, `page.js`, `page.css`: extra pages (`/p/<name>`). `fx.js`: animations (scroll reveals, progress bar, parallax, card spotlight, magnetic buttons, ripples, countdowns, smooth page changes; all off for visitors who prefer reduced motion)
 - `admin-content.js`: the 即將發售 and 活動頁面 tabs. `soon.html`, `soon.js`, `soon-lib.js`: the coming-soon page. `page.html`, `page.js`, `page.css`: extra pages (`/p/<name>`). `fx.js`: animations (scroll reveals, progress bar, parallax, card spotlight, magnetic buttons, ripples, countdowns, smooth page changes; all off for visitors who prefer reduced motion)
 - `members.js`: the 會員 tab. `me.html`, `me.js`, `me.css`: the customer's membership and order page
 - `shop.js`, `shoplib.js`: the shop-management pages and their calculations (costs, stock, profit, POS-text reader)

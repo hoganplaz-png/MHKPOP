@@ -8,6 +8,7 @@ import { setupShop } from "./shop.js";
 import { setupMembers } from "./members.js";
 import { setupContent } from "./admin-content.js";
 import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
+import { setupProofCheck } from "./proofcheck.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
@@ -47,6 +48,9 @@ if (!cfg) {
     fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion, deleteField },
     getOrders: () => orders, getWebProducts: () => products
   });
+  // reads each payment screenshot and compares it with its order (see proofcheck.js)
+  // only the check boxes and the filter counts are redrawn, so fields being typed in are not reset
+  const pcheck = setupProofCheck({ onChange: () => refreshChecks() });
 
   // ---------- sign in / out ----------
   const stopAll = () => { unsubs.forEach((u) => u()); unsubs = []; };
@@ -70,7 +74,7 @@ if (!cfg) {
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
       (snap) => { products = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderProducts(); shop.productsChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "proofs"), orderBy("createdAt", "desc")),
-      (snap) => { proofs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); }, denied));
+      (snap) => { proofs = snap.docs.map((d) => ({ id: d.id, ...d.data() })); pcheck.update(proofs); renderOrders(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "payments"), orderBy("order")),
       (snap) => { payments = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPayments(); }, denied));
     unsubs.push(onSnapshot(doc(db, "settings", "site"),
@@ -102,9 +106,12 @@ if (!cfg) {
   // ---------- orders ----------
   const fmt = (o) => o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString("zh-HK", { hour12: false }) : "";
   const proofsOf = (o) => proofs.filter((p) => p.orderNo === o.orderNo);
+  const checksOf = (o) => proofsOf(o).map((p) => ({ p, r: pcheck.resultFor(o, p, proofs) }));
+  // an order needs a manual check when any of its screenshots did not pass (or could not be read)
+  const needsCheck = (o) => o.status !== "cancelled" && checksOf(o).some(({ r }) => r.state === "error" || (r.state === "done" && r.status === "review"));
   const visibleOrders = () => {
     const q = $("#search").value.trim().toLowerCase();
-    return orders.filter((o) => (filter === "all" || (filter === "proof" ? proofsOf(o).length > 0 : o.status === filter)) &&
+    return orders.filter((o) => (filter === "all" || (filter === "proof" ? proofsOf(o).length > 0 : filter === "review" ? needsCheck(o) : o.status === filter)) &&
       (!q || [o.orderNo, o.name, o.contact, o.email, o.address, o.notes].join(" ").toLowerCase().includes(q)));
   };
 
@@ -151,12 +158,23 @@ if (!cfg) {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
 
-  function renderOrders() {
+  function renderFilters() {
     const count = (s) => orders.filter((o) => s === "all" || o.status === s).length;
     $("#c-orders").textContent = count("new") ? "(" + count("new") + " 新)" : "";
-    const nProof = orders.filter((o) => proofsOf(o).length > 0).length;
-    $("#filters").innerHTML = ["all", "new", "confirmed", "done", "cancelled", "proof"].map((s) =>
-      '<button type="button" class="chip" data-f="' + s + '" aria-pressed="' + (filter === s) + '">' + (s === "all" ? "全部" : s === "proof" ? "有付款截圖" : ORDER_STATUS[s]) + " (" + (s === "proof" ? nProof : count(s)) + ")</button>").join("");
+    const nProof = orders.filter((o) => proofsOf(o).length > 0).length, nReview = orders.filter(needsCheck).length;
+    const label = { all: "全部", proof: "有付款截圖", review: "需人手核對" };
+    $("#filters").innerHTML = ["all", "new", "confirmed", "done", "cancelled", "proof", "review"].map((s) =>
+      '<button type="button" class="chip' + (s === "review" && nReview ? " chip-alert" : "") + '" data-f="' + s + '" aria-pressed="' + (filter === s) + '">' + (label[s] || ORDER_STATUS[s]) + " (" + (s === "proof" ? nProof : s === "review" ? nReview : count(s)) + ")</button>").join("");
+  }
+  function refreshChecks() {
+    renderFilters();
+    if (filter === "review") { renderOrders(); return; }
+    document.querySelectorAll("[data-checks]").forEach((box) => {
+      const o = orders.find((x) => x.id === box.dataset.checks); if (o) box.innerHTML = checksHtml(o);
+    });
+  }
+  function renderOrders() {
+    renderFilters();
     const list = visibleOrders();
     $("#empty").hidden = list.length > 0;
     $("#orders").innerHTML = list.map((o) => {
@@ -188,16 +206,34 @@ if (!cfg) {
       (o.uid ? '<small class="hint">會員積分：' + (members.hasEarned(o) ? "已加分" : "按「已確認」後加 " + pts + " 分") + "</small>" : '<small class="hint">此訂單沒有會員帳戶（舊訂單）</small>') + "</div>";
   }
   function proofHtml(o) {
-    const list = proofsOf(o);
+    const list = checksOf(o);
     if (!list.length) return '<p class="o-proof none">未有付款截圖</p>';
-    return '<div class="o-proof"><b>付款截圖 (' + list.length + ")</b>" + list.map((p) =>
-      '<button type="button" class="proof-thumb" data-proof="' + p.id + '" aria-label="查看付款截圖"><img src="' + esc(p.image) + '" alt=""></button>').join("") + "</div>";
+    return '<div class="o-proof"><b>付款截圖 (' + list.length + ")</b>" + list.map(({ p }) =>
+      '<button type="button" class="proof-thumb" data-proof="' + p.id + '" aria-label="查看付款截圖"><img src="' + esc(p.image) + '" alt=""></button>').join("") + "</div>" +
+      '<div class="o-checks" data-checks="' + esc(o.id) + '">' + checksHtml(o) + "</div>";
   }
+  const checksHtml = (o) => { const list = checksOf(o); return list.map(({ p, r }, i) => checkHtml(p, r, list.length > 1 ? i + 1 : 0)).join(""); };
+  const MARK = { ok: "✓", bad: "✗", info: "–" };
+  function checkHtml(p, r, n) {
+    const tag = n ? "（第 " + n + " 張）" : "";
+    if (r.state === "pending") return '<div class="o-check is-pending" role="status"><span class="o-check-head"><span class="o-check-dot" aria-hidden="true"></span>自動核對中' + tag + "…</span></div>";
+    if (r.state === "error") return '<div class="o-check is-review"><span class="o-check-head">無法自動讀取截圖' + tag + '，請人手核對</span><button type="button" class="o-check-again" data-recheck="' + p.id + '">再試</button></div>';
+    const pass = r.status === "pass";
+    return '<div class="o-check ' + (pass ? "is-pass" : "is-review") + '"><span class="o-check-head">' + (pass ? "自動核對：相符" : "自動核對：需人手核對") + tag + "</span>" +
+      '<ul class="o-check-list">' + r.checks.map((c) => '<li class="' + c.state + '"><span aria-hidden="true">' + MARK[c.state] + "</span> " + esc(c.text) + "</li>").join("") + "</ul>" +
+      '<small class="hint">' + (pass ? "仍請在 PayMe／Alipay 確認收到款項才按「已確認」。" : "請打開截圖，並在 PayMe／Alipay 核對。") + "</small></div>";
+  }
+  $("#orders").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-recheck]"); if (!b) return;
+    const p = proofs.find((x) => x.id === b.dataset.recheck); if (p) pcheck.recheck(p);
+  });
   $("#orders").addEventListener("click", (e) => {
     const b = e.target.closest("[data-proof]"); if (!b) return;
     const p = proofs.find((x) => x.id === b.dataset.proof); if (!p) return;
     $("#prdlg-img").src = p.image;
     $("#prdlg-meta").textContent = p.orderNo + (p.note ? " · 備註：" + p.note : "") + (p.createdAt && p.createdAt.toDate ? " · " + p.createdAt.toDate().toLocaleString("zh-HK", { hour12: false }) : "");
+    const txt = pcheck.textOf(p.id);
+    $("#prdlg-ocr").hidden = !txt; $("#prdlg-ocr-text").textContent = txt;
     $("#prdlg").showModal();
   });
   $("#prdlg-close").addEventListener("click", () => $("#prdlg").close());
