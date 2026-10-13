@@ -136,6 +136,11 @@
     "acct.err.other": "發生錯誤，請稍後再試。",
     "acct.reset.sent": "如果這個電郵已註冊，我們已寄出重設密碼的電郵，請查看收件箱及垃圾郵件。",
     "acct.reset.need": "請先在上面填寫電郵地址，再按「忘記密碼」。",
+    "err.verify": "請先到電郵信箱按驗證連結，驗證電郵後才可以落單。",
+    "err.verified": "電郵已驗證，請再按一次提交訂單。",
+    "acct.verify.resend": "重新寄出驗證電郵",
+    "acct.verify.done": "我已驗證電郵",
+    "acct.verify.notyet": "仍未驗證，請先按電郵內的連結。",
     "acct.verify.sent": "我們已寄出驗證電郵，請查看收件箱及垃圾郵件。",
 
     // ----- 結帳 -----
@@ -151,7 +156,7 @@
     "pay.order": "訂單 {no}",
     "pay.total": "貨品總額（未計運費）",
     "pay.delivery": "交收：{delivery}",
-    "pay.needLogin": "請先登入你落單時使用的帳戶，才會顯示付款二維碼及收款資料。",
+    "pay.needLogin": "請先登入你落單時使用的帳戶（並已驗證電郵），才會顯示付款二維碼及收款資料。",
     "pay.none": "暫時未有付款方式。請在 Instagram 私訊我們。",
     "pay.qrAlt": "{name} 付款二維碼",
     "pay.download": "下載二維碼",

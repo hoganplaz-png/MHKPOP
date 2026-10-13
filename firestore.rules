@@ -1,13 +1,13 @@
 rules_version = '2';
 
 // Who can do what:
-//  - Orders: a customer must be signed in. They can ADD an order under their own account (the order number is
+//  - Orders: a customer must be signed in with a verified email. They can ADD an order under their own account (the order number is
 //    the document name, so it can never be overwritten) and read only their own orders.
 //    Only the shop admin (signed in with the admin email) can read all orders or change a status. Nobody can delete.
 //  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
 //  - Purchases, sales and expenses (the shop-management pages): only the admin can read or write them.
 //  - Coming-soon products and extra pages: anyone can read the published ones; only the admin can change them.
-//  - Payment methods (QR codes): only signed-in customers can read them.
+//  - Payment methods (QR codes): only customers with a verified email (and the admin) can read them.
 //  - Products, website text and wording: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
@@ -22,10 +22,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Customers must have verified their email address (they click the link in the email we send at sign-up).
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
     function validOrder(orderId) {
       let d = request.resource.data;
       let keys = ['orderNo', 'uid', 'email', 'name', 'contact', 'delivery', 'address', 'notes', 'items', 'total', 'agreed', 'status', 'createdAt'];
-      return signedIn()
+      return verified()
         && d.keys().hasOnly(keys) && d.keys().hasAll(keys)
         && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}') && orderId == d.orderNo
         && d.uid == request.auth.uid
@@ -102,7 +107,7 @@ service cloud.firestore {
     // The order must exist and belong to the signed-in customer.
     function validProof() {
       let d = request.resource.data;
-      return signedIn()
+      return verified()
         && d.keys().hasOnly(['orderNo', 'image', 'note', 'createdAt'])
         && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}')
         && d.image is string && d.image.size() <= 400000 && d.image.matches('data:image/(jpeg|png|webp);base64,.*')
@@ -120,7 +125,7 @@ service cloud.firestore {
 
     // Payment methods (QR codes, account details) are only shown to signed-in customers and the admin.
     match /payments/{paymentId} {
-      allow read: if signedIn();
+      allow read: if verified() || isAdmin();
       allow create, update: if isAdmin() && validPayment();
       allow delete: if isAdmin();
     }
@@ -226,7 +231,7 @@ service cloud.firestore {
     function validMemberSelf(uid) {
       let d = request.resource.data;
       let keys = ['uid', 'email', 'name', 'points', 'spent', 'joinedAt'];
-      return signedIn() && request.auth.uid == uid
+      return verified() && request.auth.uid == uid
         && d.keys().hasOnly(keys) && d.keys().hasAll(keys)
         && d.uid == uid && d.email == request.auth.token.email
         && d.name is string && d.name.size() <= 60

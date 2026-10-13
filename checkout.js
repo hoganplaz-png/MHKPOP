@@ -178,6 +178,14 @@
     e.preventDefault();
     if (pending) return;
     if (!window.MHA.user) { window.MHA.open("in"); return showErr("#err2", T("err.login")); }
+    if (!window.MHA.user.emailVerified) {
+      // The shop only takes orders from verified email addresses (also enforced by the database rules).
+      window.MHA.user.reload().then(function () { return window.MHA.user.getIdToken(true); }).catch(function () {}).then(function () {
+        if (!window.MHA.user.emailVerified) { window.MHA.open("in"); showErr("#err2", T("err.verify")); }
+        else showErr("#err2", T("err.verified"));
+      });
+      return;
+    }
     var name = $("#f-name").value.trim(), contact = $("#f-contact").value.trim(), address = $("#f-address").value.trim();
     var notes = $("#f-notes").value.trim(), d = curDelivery(), list = lines(), r = curRadio();
     if (!list.length) { go(1); return showErr("#err1", T("err.items")); }

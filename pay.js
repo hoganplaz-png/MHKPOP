@@ -49,7 +49,7 @@
       return Promise.all([
         fs.getDoc(fs.doc(db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
         authP.then(function (u) {
-          if (!u) { needLogin = true; return null; }
+          if (!u || !u.emailVerified) { needLogin = true; return null; }
           return fs.getDocs(fs.query(fs.collection(db, "payments"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return d.data(); }); }).catch(function () { return null; });
         })
       ]).then(function (r) { return { site: r[0], payments: r[1] }; });
