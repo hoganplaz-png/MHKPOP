@@ -82,6 +82,12 @@
         <h2 id="sum-h" data-t="co.sum.h">訂單摘要</h2>
         <div id="sum-lines"></div>
         <div class="sum-row"><span data-t="co.sub">貨品小計</span><b id="sum-sub">HK$0</b></div>
+        <form class="code-box" id="code-form" autocomplete="off">
+          <label for="code-in" data-t="co.code.l">優惠碼</label>
+          <div class="code-row"><input id="code-in" class="field" maxlength="30" placeholder="輸入優惠碼" autocapitalize="characters" spellcheck="false"><button type="submit" class="btn btn-line" id="code-apply" data-t="co.code.apply">使用</button></div>
+          <p class="code-msg" id="code-msg" role="status" aria-live="polite" hidden></p>
+        </form>
+        <div class="sum-row" id="sum-disc-row" hidden><span data-t="co.discount">優惠碼折扣</span><b id="sum-disc"></b></div>
         <div class="sum-row"><span data-t="co.ship">運費</span><span id="sum-ship" data-t="co.ship.v">順豐到付／自取免運費</span></div>
         <div class="sum-row sum-total"><span data-t="co.total">應付總額</span><b id="sum-total">HK$0</b></div>
         <ul class="trust"><li data-t="co.trust1">售完即止，不設預留</li><li data-t="co.trust2">付款後可上傳截圖，我們核對後確認</li><li data-t="co.trust3">順豐運費在收件時付給順豐</li></ul>

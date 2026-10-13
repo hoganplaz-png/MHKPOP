@@ -45,6 +45,14 @@
       <div class="me-alert" id="me-alert" role="status" aria-live="polite" hidden></div>
       <button type="button" class="btn btn-line" id="me-notify" hidden data-t="me.notify">開啟訂單通知</button>
 
+      <section class="rewards" id="me-rewards" aria-labelledby="rw-h" hidden>
+        <h2 id="rw-h" data-t="me.rw.h">積分兌換</h2>
+        <p class="lead" data-t="me.rw.lead">用會員積分換取以下商品。兌換後積分會即時扣除，店方會聯絡你安排交收。</p>
+        <p class="error" id="rw-msg" role="status" aria-live="polite" hidden></p>
+        <div class="rw-grid" id="rw-grid"></div>
+        <details class="pts-log" id="rw-mine-box" hidden><summary data-t="me.rw.mine">我的兌換</summary><div id="rw-mine"></div></details>
+      </section>
+
       <h2 data-t="me.orders.h">我的訂單</h2>
       <p class="empty" id="me-empty" hidden data-t="me.orders.empty">未有訂單。</p>
       <div id="me-orders"></div>

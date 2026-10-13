@@ -27,6 +27,45 @@
     return out;
   }
   function total(list) { return list.reduce(function (s, x) { return s + x.price * x.q; }, 0); }
+
+  // ---------- discount code ----------
+  // The code is checked against the one document stored under its hash (see firestore.rules); the list of codes is never readable.
+  var applied = null, L = null;     // applied = { code, id, doc, mine }
+  var today = function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
+  var lib = function () { return L ? Promise.resolve(L) : import("./shoplib.js").then(function (m) { L = m; return m; }); };
+  function discountNow(sub) {
+    if (!applied || !L) return 0;
+    var r = L.evalCode(applied.doc, sub, window.MHA.user && window.MHA.user.email, applied.mine, today());
+    return r.ok ? r.discount : 0;
+  }
+  function codeMsg(text, cls) { var m = $("#code-msg"); m.textContent = text || ""; m.className = "code-msg" + (cls ? " " + cls : ""); m.hidden = !text; }
+  function dropCode(text) { applied = null; $("#code-in").value = ""; $("#code-apply").textContent = T("co.code.apply"); codeMsg(text, text ? "bad" : ""); renderSummary(); }
+  $("#code-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (applied) return dropCode("");
+    var u = window.MHA.user, raw = $("#code-in").value;
+    if (!raw.trim()) return;
+    if (!u) { window.MHA.open("in"); return codeMsg(T("co.code.login"), "bad"); }
+    var sub = total(lines());
+    codeMsg("…");
+    Promise.all([lib(), getDb()]).then(function (r) {
+      var lb = r[0], c = r[1];
+      return lb.codeId(raw).then(function (id) {
+        return Promise.all([
+          c.fs.getDoc(c.fs.doc(c.db, "codes", id)).catch(function () { return null; }),
+          c.fs.getDoc(c.fs.doc(c.db, "codes", id, "uses", u.uid)).catch(function () { return null; })
+        ]).then(function (d) {
+          var doc = d[0] && d[0].exists() ? d[0].data() : null, mine = d[1] && d[1].exists() ? Number(d[1].data().n) || 0 : 0;
+          var res = lb.evalCode(doc, sub, u.email, mine, today());
+          if (!res.ok) return codeMsg(T("co.code." + res.reason), "bad");
+          applied = { code: lb.normCode(raw), id: id, doc: doc, mine: mine };
+          $("#code-apply").textContent = T("co.code.remove");
+          codeMsg(T("co.code.ok", { code: applied.code, amount: money(res.discount) }), "good");
+          renderSummary();
+        });
+      });
+    }).catch(function () { codeMsg(T("co.code.invalid"), "bad"); });
+  });
   function usedOf(id) {
     var n = M.cart.qty(id);
     Object.keys(addonQty).forEach(function (k) { if (k.split("|")[1] === id) n += addonQty[k]; });
@@ -61,7 +100,10 @@
     $("#sum-lines").innerHTML = list.length ? list.map(function (x) {
       return '<div class="sum-item"><span>' + (x.addon ? esc(T("me.addon")) + " " : "") + esc(dn(x.p.group, x.p.name)) + ' <i>× ' + x.q + "</i></span><span>" + money(x.price * x.q) + "</span></div>";
     }).join("") : '<p class="hint">' + esc(T("cart.empty")) + "</p>";
-    $("#sum-sub").textContent = money(total(list)); $("#sum-total").textContent = money(total(list));
+    var sub = total(list), disc = discountNow(sub);
+    if (applied && !disc && sub > 0) { applied = null; $("#code-apply").textContent = T("co.code.apply"); codeMsg(T("co.code.min"), "bad"); }
+    $("#sum-disc-row").hidden = !disc; $("#sum-disc").textContent = "−" + money(disc);
+    $("#sum-sub").textContent = money(sub); $("#sum-total").textContent = money(sub - disc);
     syncDelivery();
   }
   function showErr(id, msg) { var e = $(id); e.textContent = msg; e.hidden = !msg; if (msg) e.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
@@ -168,10 +210,18 @@
     return getDb().then(function (c) {
       var u = c && c.auth.currentUser;
       if (!u) throw new Error("login");
-      return c.fs.setDoc(c.fs.doc(c.db, "orders", o.orderNo), {
+      var data = {
         orderNo: o.orderNo, uid: u.uid, email: u.email || "", name: o.name, contact: o.contact, delivery: o.delivery, address: o.address,
         notes: o.notes, items: o.items, total: o.total, agreed: true, status: "new", createdAt: c.fs.serverTimestamp()
-      });
+      };
+      if (!o.code) return c.fs.setDoc(c.fs.doc(c.db, "orders", o.orderNo), data);
+      // with a code, the order and the code's use counters are saved together or not at all
+      data.code = o.code.code; data.codeId = o.code.id; data.discount = o.discount;
+      var b = c.fs.writeBatch(c.db), uses = c.fs.doc(c.db, "codes", o.code.id, "uses", u.uid);
+      b.set(c.fs.doc(c.db, "orders", o.orderNo), data);
+      b.update(c.fs.doc(c.db, "codes", o.code.id), { used: c.fs.increment(1), lastOrder: o.orderNo });
+      b.set(uses, { n: c.fs.increment(1) }, { merge: true });
+      return b.commit();
     });
   }
   $("#co-form").addEventListener("submit", function (e) {
@@ -196,9 +246,10 @@
     if (!$("#f-agree").checked) return showErr("#err2", T("err.agree"));
     if ($("#f-website").value) return;
     showErr("#err2", "");
-    var t = total(list);
+    var sub = total(list), disc = discountNow(sub), t = sub - disc;
     var o = {
       orderNo: newOrderNo(), name: name, contact: contact, delivery: dName(d, +r.value), address: d.pickup ? "" : address, notes: notes, total: t,
+      code: disc ? applied : null, discount: disc,
       items: list.map(function (x) { var it = { group: x.p.group, name: x.p.name, price: x.price, qty: x.q, mode: x.mode }; if (x.addon) { it.addon = true; it.addonOf = x.addonOf; } return it; })
     };
     var btn = $("#submit"); pending = true; btn.disabled = true; btn.textContent = T("review.sending");
@@ -209,7 +260,7 @@
     }).catch(function (err) {
       pending = false; btn.disabled = false; btn.textContent = T("co.place");
       if (err && err.message === "login") { window.MHA.open("in"); showErr("#err2", T("err.login")); }
-      else showErr("#err2", T("err.submit", { ig: S.instagram }));
+      else { if (applied) dropCode(T("co.code.invalid")); showErr("#err2", T("err.submit", { ig: S.instagram })); }
     });
   });
 
@@ -224,6 +275,8 @@
   }
   renderDelivery();
   window.MHA.init();
+  lib();
+  window.MHA.onChange(function () { if (applied && !window.MHA.user) dropCode(""); });
   Promise.all([M.loadProducts(), window.MHT.init(), remote()]).then(function (r) {
     var site = r[2];
     if (site) {
