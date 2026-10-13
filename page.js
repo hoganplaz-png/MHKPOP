@@ -10,6 +10,7 @@
   function link(t) {
     t = String(t || "");
     if (t === "ig") return "https://www.instagram.com/" + S.instagram + "/";
+    if (t === "#order") return "/#shelf";
     if (t.charAt(0) === "#") return "/" + t;
     return /^(https:\/\/|\/)/.test(t) ? t : "";
   }
@@ -24,7 +25,7 @@
     var n = priceOf(p), o = Number(p.price) || 0;
     var sold = p.status === "sold" || (typeof p.stock === "number" && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true));
     var im = img(p.image);
-    return '<a class="pcard reveal' + (sold ? " is-sold" : "") + '" href="/#order"><div class="pc-img">' + (im ? '<img src="' + esc(im) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">' : '<div class="soon-ph">' + esc(p.group) + "</div>") + (n < o ? '<span class="tag">' + esc(T("shelf.saleTag")) + "</span>" : "") + "</div>" +
+    return '<a class="pcard reveal' + (sold ? " is-sold" : "") + '" href="/#shelf"><div class="pc-img">' + (im ? '<img src="' + esc(im) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">' : '<div class="soon-ph">' + esc(p.group) + "</div>") + (n < o ? '<span class="tag">' + esc(T("shelf.saleTag")) + "</span>" : "") + "</div>" +
       '<div class="pc-body"><span class="caps">' + esc(p.group) + "</span><b>" + esc(p.name) + '</b><span class="price">' + (n < o ? '<s class="was">' + money(o) + "</s> " : "") + money(n) + "</span>" +
       '<span class="pc-go">' + esc(sold ? T("shelf.soldFoot") : T("shelf.orderLink")) + "</span></div></a>";
   }

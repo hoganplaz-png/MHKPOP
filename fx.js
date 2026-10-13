@@ -6,6 +6,8 @@
   var mq = function (q) { return window.matchMedia ? window.matchMedia(q).matches : false; };
   var reduce = mq("(prefers-reduced-motion: reduce)"), fine = mq("(hover: hover) and (pointer: fine)");
   var doc = document.documentElement, FX = window.FX = { reduce: reduce };
+  var level = doc.getAttribute("data-motion") || "full";
+  if (level === "off") { reduce = true; FX.reduce = true; }
   if (!reduce) doc.classList.add("fx-on");
 
   // ---------- reveal on scroll ----------
@@ -52,6 +54,28 @@
   }
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
   onScroll();
+
+  // ---------- hero: floating shapes behind the logo and a tilt that follows the pointer ----------
+  var tile = document.querySelector(".hero-art .tile");
+  if (tile && level !== "subtle") {
+    var fl = document.createElement("div"); fl.className = "float-shapes"; fl.setAttribute("aria-hidden", "true");
+    fl.innerHTML = "<i></i><i></i><i></i><i></i><i></i>"; tile.parentNode.insertBefore(fl, tile);
+    if (fine) {
+      var art = tile.parentNode;
+      art.addEventListener("pointermove", function (e) {
+        var r = art.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        tile.style.transform = "perspective(900px) rotateY(" + (x * 12) + "deg) rotateX(" + (-y * 12) + "deg) scale(1.02)";
+        fl.style.transform = "translate(" + (-x * 24) + "px," + (-y * 24) + "px)";
+      }, { passive: true });
+      art.addEventListener("pointerleave", function () { tile.style.transform = ""; fl.style.transform = ""; });
+    }
+  }
+  // soft light that follows the mouse across the page
+  if (fine && level === "full") {
+    var glow = document.createElement("div"); glow.id = "fx-glow"; glow.setAttribute("aria-hidden", "true"); document.body.appendChild(glow);
+    document.addEventListener("pointermove", function (e) { glow.style.transform = "translate(" + (e.clientX - 160) + "px," + (e.clientY - 160) + "px)"; glow.classList.add("on"); }, { passive: true });
+    document.addEventListener("pointerleave", function () { glow.classList.remove("on"); });
+  }
 
   // ---------- pointer effects (mouse / trackpad only) ----------
   if (fine) {

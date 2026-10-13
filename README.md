@@ -85,3 +85,19 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 - `firestore.rules`, `firebase.json`, `rules-manual.txt`, `admin-email.txt`: Firebase setup
 - `scripts/`, `.github/`: automatic deploy
 - `assets/`: logo files and the PayMe and Alipay QR codes
+
+
+## Online shop, cart and checkout
+- The home page is a shop: search, sort, filter by group, "加入購物車" on every product (choose 格仔舖現貨 / 訂購 when a product has both).
+- The cart (`cart.js`, kept in the browser) opens as a slide-in drawer; add-ons (加購) are chosen inside the cart.
+- `checkout.html` takes contact details, delivery (cards that grey out when a product cannot use that method) and the terms, saves the order and opens the payment page.
+- Product rules shared by all pages are in `catalog.js`.
+
+## Theme design (主題設計 tab)
+Colours, corner shape, fonts, big-logo shape (squircle / arch / circle / blob / card), product-card style and motion level (off / subtle / full), with a live preview. Saved in `settings/theme` (rules included).
+
+## Automatic payment-screenshot check
+When a customer uploads a screenshot, the admin page reads it with OCR (Tesseract.js, self-hosted in `vendor/tesseract`, runs in your browser) and compares it with the order: amount, "success" wording, date, order number, and whether the same picture was used for another order.
+Result badges: 看來相符 / 請人手核對 / 有地方不符 / 重複使用的圖片. A matching screenshot shows a one-click "已核對 App 收款，一鍵確認" button.
+**Limits:** this checks that the screenshot looks right. It cannot prove the money arrived, and a faked screenshot can look right. Always look at your PayMe / Alipay / bank app before confirming. Truly automatic confirmation needs a payment provider with a server (Stripe / PayMe for Business API) and Firebase's paid Blaze plan.
+The result is saved on the proof (`check`) – publish the new `firestore.rules` for that.

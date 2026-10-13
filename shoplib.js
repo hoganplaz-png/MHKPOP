@@ -533,3 +533,55 @@ export function effectivePrice(p, today = todayStr()) {
   return Number(p.price) || 0;
 }
 export const onSale = (p, today = todayStr()) => effectivePrice(p, today) < (Number(p.price) || 0);
+
+// ---------- payment screenshot check ----------
+// Reads the words found in a payment screenshot (by OCR) and compares them with the order. It can only say whether the
+// screenshot LOOKS right (amount, success wording, date). It cannot prove the money arrived: the shop owner must still
+// look at the PayMe / Alipay / bank app. Returns { verdict, checks: [{ key, state: "ok"|"bad"|"unknown", label }] }.
+export function normaliseOcr(text) {
+  return String(text || "")
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/＄/g, "$").replace(/[，﹐]/g, ",").replace(/．/g, ".")
+    .replace(/(\d)[ \t]+(?=[\d,.])/g, "$1").replace(/(?<=[\d,.])[ \t]+(?=\d)/g, "");
+}
+export function findAmounts(text) {
+  const t = normaliseOcr(text), out = new Set();
+  const add = (s) => { const n = Number(String(s).replace(/,/g, "")); if (Number.isFinite(n) && n > 0 && n < 1e7) out.add(round2(n)); };
+  for (const m of t.matchAll(/(?:HK\s?\$|HKD|\$|港幣|港元)\s*([0-9][0-9,]*(?:\.\d{1,2})?)/gi)) add(m[1]);
+  for (const m of t.matchAll(/([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:HKD|港幣|港元|元)/gi)) add(m[1]);
+  for (const m of t.matchAll(/(?<![\d,.])([0-9]{1,3}(?:,\d{3})*\.\d{2})(?![\d])/g)) add(m[1]);
+  return [...out];
+}
+export function findDates(text) {
+  const t = normaliseOcr(text), out = [];
+  for (const m of t.matchAll(/(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/g)) out.push(new Date(+m[1], +m[2] - 1, +m[3]));
+  for (const m of t.matchAll(/(?<!\d)(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(20\d{2})(?!\d)/g)) out.push(new Date(+m[3], +m[2] - 1, +m[1]));
+  return out.filter((d) => !isNaN(d.getTime()));
+}
+const SUCCESS = /(成功|已付款|付款完成|轉賬完成|轉帳完成|已完成|已發送|已送出|payment\s*(?:successful|complete)|successful|completed|\bpaid\b|\bsent\b|transfer(?:red)?)/i;
+export function analyzeProof(text, order, opts = {}) {
+  const now = opts.now ? new Date(opts.now) : new Date(), checks = [], total = round2(Number(order && order.total) || 0);
+  const raw = String(text || "");
+  if (raw.replace(/\s/g, "").length < 6) {
+    return { verdict: "unreadable", checks: [{ key: "text", state: "bad", label: "讀不到截圖上的文字（圖片太模糊或不是付款截圖）" }], amounts: [] };
+  }
+  const amounts = findAmounts(raw), amountOk = amounts.some((a) => Math.abs(a - total) < 0.005);
+  checks.push({ key: "amount", state: amountOk ? "ok" : amounts.length ? "bad" : "unknown",
+    label: amountOk ? "金額相符：" + money(total) : amounts.length ? "金額不符：截圖有 " + amounts.map(money).join("、") + "，訂單是 " + money(total) : "找不到金額" });
+  const success = SUCCESS.test(normaliseOcr(raw));
+  checks.push({ key: "success", state: success ? "ok" : "unknown", label: success ? "有「成功／完成」字樣" : "找不到「成功／完成」字樣" });
+  const dates = findDates(raw), day = 86400000;
+  const near = dates.some((d) => Math.abs(d.getTime() - now.getTime()) <= 3 * day + day);
+  checks.push({ key: "date", state: dates.length ? (near ? "ok" : "bad") : "unknown", label: dates.length ? (near ? "日期是最近 3 日內" : "日期不是最近：" + dates.map((d) => d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()).join("、")) : "找不到日期" });
+  if (order && order.orderNo && normaliseOcr(raw).toUpperCase().includes(String(order.orderNo).toUpperCase())) checks.push({ key: "ref", state: "ok", label: "截圖備註有訂單編號" });
+  if (opts.duplicateOf) checks.push({ key: "dup", state: "bad", label: "同一張圖片曾用於訂單 " + opts.duplicateOf });
+  let verdict;
+  if (opts.duplicateOf) verdict = "duplicate";
+  else if (amountOk && success && !checks.some((c) => c.state === "bad")) verdict = "match";
+  else if (checks.some((c) => c.key === "amount" && c.state === "bad") || checks.some((c) => c.key === "date" && c.state === "bad")) verdict = "mismatch";
+  else verdict = "review";
+  return { verdict, checks, amounts };
+}
+export const VERDICT = {
+  match: "看來相符", review: "請人手核對", mismatch: "有地方不符", duplicate: "重複使用的圖片", unreadable: "讀不到文字"
+};

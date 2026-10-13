@@ -121,7 +121,7 @@ export function setupContent(ctx) {
   };
   const TYPES = { heading: "大標題", text: "文字", image: "圖片", products: "商品", button: "按鈕", countdown: "倒數計時", code: "優惠碼", divider: "分隔線" };
   function targetOptions(cur) {
-    const base = [["#order", "落單表格"], ["/soon", "即將發售頁"], ["/", "首頁"]].concat(pages.filter((p) => !editingPg || p.id !== editingPg.id).map((p) => ["/p/" + p.id, "版面：" + p.title]), [["ig", "Instagram"], ["custom", "自訂網址…"]]);
+    const base = [["#shelf", "商店（揀選商品）"], ["checkout.html", "結帳頁面"], ["/soon", "即將發售頁"], ["/", "首頁"]].concat(pages.filter((p) => !editingPg || p.id !== editingPg.id).map((p) => ["/p/" + p.id, "版面：" + p.title]), [["ig", "Instagram"], ["custom", "自訂網址…"]]);
     const known = base.some((o) => o[0] === cur);
     return base.map((o) => '<option value="' + esc(o[0]) + '"' + ((known ? o[0] === cur : o[0] === "custom") ? " selected" : "") + ">" + esc(o[1]) + "</option>").join("");
   }
@@ -139,7 +139,7 @@ export function setupContent(ctx) {
       body = '<label class="mini grow">標題（選填）<input class="field b-title" maxlength="100" value="' + esc(b.title || "") + '"></label>' + sel("b-cols", "每行", String(b.cols || 3), [["2", "2 件"], ["3", "3 件"], ["4", "4 件"]]) +
         '<div class="chk-list wide">' + (prods().map((p) => '<label class="check"><input type="checkbox" class="b-prod" value="' + esc(p.id) + '"' + (ids.has(p.id) ? " checked" : "") + "><span>" + esc(p.group + " " + p.name) + "<small>" + money(effectivePrice(p)) + "</small></span></label>").join("") || '<p class="hint">未有商品。</p>') + "</div>";
     } else if (b.type === "button") body = '<label class="mini grow">按鈕文字<input class="field b-label" maxlength="40" value="' + esc(b.label || "") + '"></label>' +
-      '<label class="mini grow">連去<select class="field b-ttype">' + targetOptions(b.target || "#order") + '</select></label><label class="mini grow b-custom-wrap"><span>網址</span><input class="field b-target" maxlength="300" placeholder="https://…" value="' + esc(b.target || "") + '"></label>' +
+      '<label class="mini grow">連去<select class="field b-ttype">' + targetOptions(b.target || "#shelf") + '</select></label><label class="mini grow b-custom-wrap"><span>網址</span><input class="field b-target" maxlength="300" placeholder="https://…" value="' + esc(b.target || "") + '"></label>' +
       sel("b-style", "樣式", b.style || "solid", [["solid", "實心"], ["line", "線框"]]) + sel("b-align", "對齊", b.align || "left", [["left", "靠左"], ["center", "置中"]]);
     else if (b.type === "countdown") body = '<label class="mini grow">說明文字<input class="field b-label" maxlength="100" placeholder="例如 優惠倒數" value="' + esc(b.label || "") + '"></label><label class="mini">完結時間<input class="field b-ends" type="datetime-local" value="' + esc(b.endsAt || "") + '"></label>' +
       '<label class="mini grow">完結後顯示（選填）<input class="field b-ended" maxlength="100" placeholder="例如 優惠已完結" value="' + esc(b.endedText || "") + '"></label>';
@@ -192,7 +192,7 @@ export function setupContent(ctx) {
   });
   document.querySelectorAll("#pgdlg [data-add]").forEach((b) => b.addEventListener("click", () => {
     const type = b.dataset.add, init = { type, id: uid() };
-    if (type === "button") Object.assign(init, { target: "#order", label: "立即落單" });
+    if (type === "button") Object.assign(init, { target: "#shelf", label: "立即選購" });
     const el = addBlock(init); el.scrollIntoView({ block: "nearest" });
     const first = el.querySelector("input,textarea"); if (first) first.focus();
   }));

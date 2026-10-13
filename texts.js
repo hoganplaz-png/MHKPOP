@@ -63,6 +63,46 @@
     "item.modePreorder": "訂購（需等待到貨）",
     "item.modeSf": "順豐寄送",
 
+    // ----- 購物車及結帳 -----
+    "shelf.add": "加入購物車",
+    "shelf.added": "已加入 ✓",
+    "cart.title": "購物車",
+    "cart.close": "關閉購物車",
+    "cart.empty": "購物車是空的",
+    "cart.keep": "繼續選購",
+    "cart.subtotal": "貨品小計",
+    "cart.note": "運費不包括在內，順豐到付或門市自取。",
+    "cart.checkout": "前往結帳",
+    "cart.remove": "移除",
+    "cart.gone": "此貨品已下架",
+    "cart.unavailable": "這件貨品暫時不能購買。",
+    "co.title": "結帳",
+    "co.back": "← 繼續選購",
+    "co.step1": "聯絡資料",
+    "co.step2": "交收方式",
+    "co.step3": "確認及付款",
+    "co.name": "姓名",
+    "co.contact": "Instagram 或電話",
+    "co.address": "收件地址",
+    "co.notes": "備註（選填）",
+    "co.summary": "訂單摘要",
+    "co.total": "貨品總額（未計運費）",
+    "co.agree": "我已閱讀並同意服務條款及私隱政策。",
+    "co.place": "提交訂單，前往付款",
+    "co.sending": "提交中…",
+    "co.empty": "購物車是空的，先去選購吧。",
+    "co.login": "請先登入或註冊，才可以結帳。",
+    "co.loginBtn": "登入 / 註冊",
+    "co.closed": "網上落單暫時未開放。請在 Instagram 私訊我們。",
+    "co.pickupNote": "門市自取：將軍澳 TKO Gateway 東翼一樓 E171 號舖。",
+    "co.sfNote": "順豐到付：運費在收件時付給順豐。",
+    "co.hint": "提交後會開啟付款頁面，付款後上傳截圖，我們會核對並確認。",
+    "trust.1": "售完即止 · 真貨保證",
+    "trust.2": "順豐到付 · 或門市自取",
+    "trust.3": "註冊成為會員 · 賺取積分",
+    "trust.4": "網上付款 · 上傳截圖確認",
+    "shelf.search": "搜尋組合或專輯",
+
     // ----- 落單表格訊息 -----
     "err.login": "請先登入或註冊，才可以落單。",
     "err.name": "請填寫姓名。",
@@ -166,6 +206,7 @@
     var timeout = new Promise(function (resolve) { setTimeout(resolve, 7000); });
     var work = (window.MHFB ? window.MHFB.load() : Promise.resolve(null)).then(function (c) {
       if (!c) return;
+      if (window.MHTheme && !/[?&]theme-preview=1/.test(location.search)) c.fs.getDoc(c.fs.doc(c.db, "settings", "theme")).then(function (d) { window.MHTheme.set(d.exists() ? d.data() : null); }).catch(function () {});
       return c.fs.getDoc(c.fs.doc(c.db, "settings", "texts")).then(function (d) {
         var data = d.exists() ? d.data() : null, next = {};
         var src = data && data.t && typeof data.t === "object" ? data.t : {};

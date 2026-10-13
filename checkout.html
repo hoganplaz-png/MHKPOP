@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>結帳 | MHKPOP</title>
+  <meta name="robots" content="noindex">
+  <script src="theme.js"></script>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="checkout.css">
+</head>
+<body data-no-drawer>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="index.html"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <div class="nav-actions"><button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button></div>
+    </div>
+  </header>
+  <main class="wrap co">
+    <a class="back" href="index.html#shelf" data-t="co.back">← 繼續選購</a>
+    <h1 data-t="co.title">結帳</h1>
+    <p class="closed" id="closed" hidden data-t="co.closed">網上落單暫時未開放。請在 Instagram 私訊我們。</p>
+    <p class="loading" id="co-empty" hidden><span data-t="co.empty">購物車是空的，先去選購吧。</span> <a class="link" href="index.html#shelf" data-t="cart.keep">繼續選購</a></p>
+    <div class="co-grid" id="co-grid" hidden>
+      <form id="co-form" novalidate>
+        <section class="co-card" id="co-gate" hidden>
+          <p data-t="co.login">請先登入或註冊，才可以結帳。</p>
+          <button type="button" class="btn btn-solid" id="gate-btn" data-t="co.loginBtn">登入 / 註冊</button>
+        </section>
+        <section class="co-card">
+          <h2><i>1</i><span data-t="co.step1">聯絡資料</span></h2>
+          <div class="two">
+            <div><label for="f-name" data-t="co.name">姓名</label><input id="f-name" class="field" type="text" autocomplete="name" maxlength="100"></div>
+            <div><label for="f-contact" data-t="co.contact">Instagram 或電話</label><input id="f-contact" class="field" type="text" autocomplete="tel" maxlength="100"></div>
+          </div>
+        </section>
+        <section class="co-card">
+          <h2><i>2</i><span data-t="co.step2">交收方式</span></h2>
+          <div class="dcards" id="delivery"></div>
+          <p class="hint" id="delivery-note"></p>
+          <div id="address-wrap"><label for="f-address" data-t="co.address">收件地址</label><textarea id="f-address" class="field" rows="3" autocomplete="street-address" maxlength="500"></textarea></div>
+          <label for="f-notes" data-t="co.notes">備註（選填）</label><textarea id="f-notes" class="field" rows="2" maxlength="1000"></textarea>
+        </section>
+        <section class="co-card">
+          <h2><i>3</i><span data-t="co.step3">確認及付款</span></h2>
+          <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" type="text" tabindex="-1" autocomplete="off"></div>
+          <label class="check"><input id="f-agree" type="checkbox"><span><span data-t="form.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="form.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="form.agree.c">。</span></span></label>
+          <p class="error" id="error" role="alert" hidden></p>
+          <button class="btn btn-solid btn-lg" type="submit" id="submit" data-t="co.place">提交訂單，前往付款</button>
+          <p class="hint" data-t="co.hint">提交後會開啟付款頁面，付款後上傳截圖，我們會核對並確認。</p>
+        </section>
+      </form>
+      <aside class="co-sum" aria-label="訂單摘要">
+        <h2 data-t="co.summary">訂單摘要</h2>
+        <div id="co-lines"></div>
+        <div class="co-total"><span data-t="co.total">貨品總額（未計運費）</span><b id="co-total">HK$0</b></div>
+      </aside>
+    </div>
+  </main>
+
+  <dialog class="review acct" id="acct" aria-labelledby="acct-title">
+    <h3 id="acct-title">登入帳戶</h3>
+    <div id="acct-out">
+      <div class="tabs2" role="tablist">
+        <button type="button" role="tab" id="acct-tab-in" aria-selected="true" data-t="acct.tab.in">登入</button>
+        <button type="button" role="tab" id="acct-tab-up" aria-selected="false" data-t="acct.tab.up">註冊</button>
+      </div>
+      <form id="acct-form" novalidate>
+        <div id="acct-name-wrap" hidden><label for="a-name" data-t="acct.name">姓名</label><input id="a-name" class="field" type="text" autocomplete="name" maxlength="60"></div>
+        <label for="a-email" data-t="acct.email">電郵地址</label>
+        <input id="a-email" class="field" type="email" autocomplete="email" maxlength="120">
+        <label for="a-pw" data-t="acct.pw">密碼</label>
+        <input id="a-pw" class="field" type="password" autocomplete="current-password" maxlength="100">
+        <p class="hint" id="acct-pw-hint" hidden data-t="acct.pw.hint">密碼至少 8 個字元。</p>
+        <label class="check" id="acct-agree-wrap" hidden><input id="a-agree" type="checkbox"><span><span data-t="acct.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="acct.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="acct.agree.c">。</span></span></label>
+        <p class="error" id="acct-error" role="alert" hidden></p>
+        <p class="hint" id="acct-info" role="status" hidden></p>
+        <button class="btn btn-solid" type="submit" id="acct-submit">登入</button>
+        <button type="button" class="link" id="acct-forgot" data-t="acct.forgot">忘記密碼？</button>
+      </form>
+    </div>
+    <div id="acct-in" hidden>
+      <p><span data-t="acct.me">已登入：</span> <b id="acct-me"></b></p>
+      <p class="hint" id="acct-verify" hidden data-t="acct.verify">請到你的電郵信箱（包括垃圾郵件）按驗證連結，完成電郵驗證。</p>
+      <a class="btn btn-solid" href="me.html" data-t="acct.me.link">我的會員及訂單</a>
+      <button type="button" class="btn btn-line" id="acct-signout" data-t="acct.signout">登出</button>
+    </div>
+    <div class="review-actions"><button type="button" class="btn btn-line" id="acct-close" data-t="acct.close">關閉</button></div>
+  </dialog>
+
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="account.js"></script>
+  <script src="fx.js"></script>
+  <script src="catalog.js"></script>
+  <script src="cart.js"></script>
+  <script src="checkout.js"></script>
+</body>
+</html>

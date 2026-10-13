@@ -114,7 +114,10 @@ service cloud.firestore {
     match /proofs/{proofId} {
       allow create: if validProof();
       allow read, delete: if isAdmin();
-      allow update: if false;
+      // only the automatic check result may be added to a screenshot, and only by the shop owner
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['check'])
+        && request.resource.data.check is map;
     }
 
     match /payments/{paymentId} {
@@ -264,6 +267,22 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['enabled', 'per', 'tiers'])
         && request.resource.data.enabled is bool && request.resource.data.per is number && request.resource.data.per > 0
         && request.resource.data.tiers is list && request.resource.data.tiers.size() <= 6;
+      allow delete: if false;
+    }
+
+    // ---- Website theme (colours, shapes, fonts, motion) designed on the admin page ----
+    match /settings/theme {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['preset', 'ink', 'ground', 'cream', 'accent', 'radius', 'headFont', 'bodyFont', 'logoShape', 'motion', 'cardStyle', 'updatedAt'])
+        && request.resource.data.ink.matches('#[0-9a-fA-F]{6}') && request.resource.data.ground.matches('#[0-9a-fA-F]{6}')
+        && request.resource.data.cream.matches('#[0-9a-fA-F]{6}') && request.resource.data.accent.matches('#[0-9a-fA-F]{6}')
+        && request.resource.data.radius in ['sharp', 'soft', 'round', 'pill']
+        && request.resource.data.logoShape in ['squircle', 'arch', 'circle', 'blob', 'card']
+        && request.resource.data.motion in ['off', 'subtle', 'full']
+        && request.resource.data.cardStyle in ['outline', 'shadow', 'flat']
+        && request.resource.data.headFont is string && request.resource.data.headFont.size() <= 40
+        && request.resource.data.bodyFont is string && request.resource.data.bodyFont.size() <= 40;
       allow delete: if false;
     }
 

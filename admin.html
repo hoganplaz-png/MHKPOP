@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-no-theme>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -45,6 +45,7 @@
         <button type="button" role="tab" class="tab" id="t-texts" data-tab="texts" aria-selected="false" aria-controls="p-texts">全部文字</button>
         <button type="button" role="tab" class="tab" id="t-soon" data-tab="soon" aria-selected="false" aria-controls="p-soon">即將發售</button>
         <button type="button" role="tab" class="tab" id="t-pages" data-tab="pages" aria-selected="false" aria-controls="p-pages">活動頁面</button>
+        <button type="button" role="tab" class="tab" id="t-theme" data-tab="theme" aria-selected="false" aria-controls="p-theme">主題設計</button>
       </div>
       <div class="tabs tabs-shop" role="tablist" aria-label="店舖管理">
         <span class="tabs-label">店舖管理</span>
@@ -271,6 +272,41 @@
         <div id="mb-list"></div>
       </section>
 
+      <!-- 主題設計 -->
+      <section id="p-theme" role="tabpanel" aria-labelledby="t-theme" hidden>
+        <div class="theme-wrap">
+          <form id="th-form" class="theme-form">
+            <p class="hint">在這裡設計整個網站的外觀。右邊是即時預覽，你改動任何一項，預覽馬上變，按「儲存主題」後網站才會更新。</p>
+            <h3 class="sub">快速套用</h3>
+            <div id="th-presets" class="th-presets"></div>
+            <h3 class="sub">顏色</h3>
+            <div class="th-colors">
+              <label class="mini">文字及主色<input id="th-ink" type="color"></label>
+              <label class="mini">頁面背景<input id="th-ground" type="color"></label>
+              <label class="mini">卡片及輸入框底色<input id="th-cream" type="color"></label>
+              <label class="mini">強調色（特價標籤等）<input id="th-accent" type="color"></label>
+            </div>
+            <h3 class="sub">形狀</h3>
+            <fieldset class="th-choice" id="th-radius"><legend>按鈕、卡片的圓角</legend></fieldset>
+            <fieldset class="th-choice th-logo" id="th-logo"><legend>大 Logo 的形狀</legend></fieldset>
+            <fieldset class="th-choice" id="th-cards"><legend>商品卡片風格</legend></fieldset>
+            <h3 class="sub">字體</h3>
+            <div class="grid2">
+              <div><label for="th-head">標題及價錢字體</label><select id="th-head" class="field"></select></div>
+              <div><label for="th-body">內文字體</label><select id="th-body" class="field"></select></div>
+            </div>
+            <h3 class="sub">動畫</h3>
+            <fieldset class="th-choice" id="th-motion"><legend>動畫多少</legend></fieldset>
+            <p class="error" id="th-error" role="alert" hidden></p>
+            <div class="dlg-actions"><button type="submit" class="btn btn-solid" id="th-save">儲存主題</button><button type="button" class="btn btn-line" id="th-reset">還原預設</button><span class="saving" id="th-saved" aria-live="polite"></span></div>
+          </form>
+          <div class="theme-preview">
+            <div class="th-devices" role="group" aria-label="預覽裝置"><button type="button" class="chip" data-dev="desktop" aria-pressed="true">電腦</button><button type="button" class="chip" data-dev="mobile" aria-pressed="false">手機</button><a class="btn btn-line" href="index.html" target="_blank" rel="noopener">開新視窗查看網站</a></div>
+            <div class="th-frame" id="th-frame-box"><iframe id="th-frame" title="網站預覽" src="index.html?theme-preview=1"></iframe></div>
+          </div>
+        </div>
+      </section>
+
       <!-- 即將發售 -->
       <section id="p-soon" role="tabpanel" aria-labelledby="t-soon" hidden>
         <div class="tools">
@@ -380,7 +416,8 @@
     <h2 id="prdlg-title">付款截圖</h2>
     <p class="hint" id="prdlg-meta"></p>
     <img id="prdlg-img" alt="客人上傳的付款截圖" style="max-width:100%;max-height:70dvh;display:block;margin:12px auto;border-radius:10px">
-    <div class="dlg-actions"><button type="button" class="btn btn-solid" id="prdlg-close">關閉</button></div>
+    <div id="prdlg-check"></div>
+    <div class="dlg-actions"><button type="button" class="btn btn-line" id="prdlg-recheck">重新檢查</button><button type="button" class="btn btn-solid" id="prdlg-close">關閉</button></div>
   </dialog>
 
   <!-- 付款方式表單 -->
@@ -611,6 +648,7 @@
 
   <script src="settings.js"></script>
   <script src="firebase-config.js"></script>
+  <script src="theme.js"></script>
   <script src="texts.js"></script>
   <script type="module" src="admin.js"></script>
 </body>

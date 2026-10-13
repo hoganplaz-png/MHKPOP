@@ -158,7 +158,7 @@
         if (e && e.message === "login") {
           err.textContent = "";
           var t = document.createTextNode(T("pay.proof.login") + " ");
-          var a = document.createElement("a"); a.href = "/#order"; a.textContent = T("pay.proof.loginLink");
+          var a = document.createElement("a"); a.href = "/#shelf"; a.textContent = T("pay.proof.loginLink");
           err.appendChild(t); err.appendChild(a); err.hidden = false;
         } else fail(T("pay.proof.fail"));
       }).then(function () { btn.disabled = false; btn.textContent = T("pay.proof.send"); });

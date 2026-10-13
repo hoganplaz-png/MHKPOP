@@ -20,6 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -42,7 +43,7 @@
       </nav>
       <div class="nav-actions">
         <button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button>
-        <a class="btn btn-solid" href="#order" data-t="nav.order">落單表格</a>
+        
       </div>
     </div>
   </header>
@@ -55,8 +56,8 @@
         <p class="headline" data-s="headline"></p>
         <p class="lead" data-s="intro"></p>
         <div class="row">
-          <a class="btn btn-solid btn-lg" href="#shelf" data-t="hero.cta1">睇價目</a>
-          <a class="btn btn-line btn-lg" href="#order" data-t="hero.cta2">填寫落單表格</a>
+          <a class="btn btn-solid btn-lg" href="#shelf" data-t="hero.cta1">立即選購</a>
+          <a class="btn btn-line btn-lg" href="soon.html" data-t="hero.cta2">新品預告</a>
         </div>
       </div>
       <div class="hero-art">
@@ -71,6 +72,13 @@
       </div>
     </section>
 
+    <ul class="trust wrap" aria-label="shop promises">
+      <li><i aria-hidden="true">✓</i><span data-t="trust.1">售完即止 · 真貨保證</span></li>
+      <li><i aria-hidden="true">✈</i><span data-t="trust.2">順豐到付 · 或門市自取</span></li>
+      <li><i aria-hidden="true">★</i><span data-t="trust.3">註冊成為會員 · 賺取積分</span></li>
+      <li><i aria-hidden="true">✎</i><span data-t="trust.4">網上付款 · 上傳截圖確認</span></li>
+    </ul>
+
     <div class="marquee" aria-hidden="true"><div class="track" id="marquee"></div></div>
 
     <section id="promos" class="section wrap" hidden>
@@ -84,8 +92,12 @@
           <p class="caps kicker" data-t="shelf.kicker">暑期限定優惠</p>
           <h2 data-t="shelf.title">熱門專輯價目</h2>
         </div>
-        <div class="chips" id="chips" role="group" aria-label="按組合篩選"></div>
       </div>
+      <div class="toolbar reveal">
+        <input class="field search" id="search" type="search" maxlength="60" placeholder="搜尋組合或專輯" data-tp="shelf.search" aria-label="搜尋">
+        <select class="field sort" id="sort" aria-label="排序"><option value="">預設排序</option><option value="low">價錢：低至高</option><option value="high">價錢：高至低</option></select>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="按組合篩選"></div>
       <p class="loading" id="loading" data-t="shelf.loading">正在載入價目…</p>
       <div class="grid" id="grid"></div>
       <p class="note" data-s="shelfNote"></p>
@@ -101,8 +113,8 @@
       <div class="wrap section">
         <h2 class="reveal" data-t="how.title">購買流程</h2>
         <div class="steps">
-          <div class="step reveal"><div class="outline">1</div><h3 data-t="how.1.t">睇價目</h3><p data-t="how.1.d">在價目表睇清楚想買的專輯和價錢。</p></div>
-          <div class="step reveal"><div class="outline">2</div><h3 data-t="how.2.t">登入並填寫落單表格</h3><p data-t="how.2.d">註冊或登入帳戶，留低姓名、聯絡方式和交收方式，揀選貨品後提交。</p></div>
+          <div class="step reveal"><div class="outline">1</div><h3 data-t="how.1.t">睇價目</h3><p data-t="how.1.d">在商店揀選想買的專輯，按「加入購物車」。</p></div>
+          <div class="step reveal"><div class="outline">2</div><h3 data-t="how.2.t">結帳及登入</h3><p data-t="how.2.d">打開購物車按結帳，註冊或登入後留低聯絡方式和交收方式。</p></div>
           <div class="step reveal"><div class="outline">3</div><h3 data-t="how.3.t">付款及等我們確認</h3><p data-t="how.3.d">確認訂單後會開啟付款頁面。我們收到款項並確認貨量後，會聯絡你交收安排。</p></div>
         </div>
       </div>
@@ -114,70 +126,6 @@
         <div class="reveal"><h3 class="caps" data-t="info.sf.t">順豐到付</h3><p data-t="info.sf.d">運費由你在收件時付給順豐，網上不收運費。大量購買亦可接受順豐到付。只有標明「可寄順豐」的貨品才可以寄順豐。</p></div>
         <div class="reveal"><h3 class="caps" data-t="info.pickup.t">門市自取</h3><p><span data-t="info.pickup.d">將軍澳 TKO Gateway 東翼一樓 E171 號舖，別樹一格 A24 &amp; B24 格位。營業時間：</span><span data-s="hours"></span><span data-t="info.pickup.e">。</span></p></div>
         <div class="reveal"><h3 class="caps" data-t="info.rules.t">落單規則</h3><p data-t="info.rules.d">售完即止，不設預留。查詢請用文字訊息，並表示有意購買 xx。本店不接受語音訊息。</p></div>
-      </div>
-    </section>
-
-    <section id="order" class="band">
-      <div class="wrap section order-wrap">
-        <div class="order-intro reveal">
-          <p class="caps kicker" data-t="ord.kicker">只接受表格落單</p>
-          <h2 data-t="ord.title">落單表格</h2>
-          <p class="lead" data-t="ord.lead">本店只接受透過這張表格落單。落單前需要登入帳戶。提交後會開啟付款頁面，我們收到款項並確認貨量後會用你留下的聯絡方式聯絡你。</p>
-          <ul class="list">
-            <li data-t="ord.li1">售完即止，不設預留</li>
-            <li data-t="ord.li2">請留下 Instagram 帳號或電話</li>
-            <li data-t="ord.li3">順豐到付，運費在收件時付給順豐</li>
-          </ul>
-        </div>
-
-        <div class="order-card">
-          <p class="closed" id="closed" hidden><span data-t="ord.closed.a">網上落單暫時未開放。請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="ord.closed.b">，並表示有意購買 xx（請用文字訊息）。</span></p>
-
-          <div class="gate" id="gate" hidden>
-            <h3 data-t="gate.title">請先登入才可落單</h3>
-            <p data-t="gate.text">為保障雙方，落單前需要註冊並登入帳戶。註冊免費，只需要電郵和密碼。</p>
-            <button type="button" class="btn btn-solid btn-lg" id="gate-btn" data-t="gate.btn">登入 / 註冊</button>
-          </div>
-
-          <form id="order-form" novalidate>
-            <p class="whoami"><span data-t="form.account">登入帳戶：</span><b id="whoami"></b> <button type="button" class="link" id="form-signout" data-t="form.signout">登出</button></p>
-            <div class="two">
-              <div><label for="f-name" data-t="form.name">姓名</label><input id="f-name" name="name" class="field" type="text" autocomplete="name" maxlength="100"></div>
-              <div><label for="f-contact" data-t="form.contact">Instagram 或電話</label><input id="f-contact" name="contact" class="field" type="text" autocomplete="tel" maxlength="100"></div>
-            </div>
-
-            <fieldset>
-              <legend data-t="form.items">揀選貨品</legend>
-              <div class="items" id="items"></div>
-              <div class="total-row"><span data-t="form.total">貨品總額（未計運費）</span><b id="total">HK$0</b></div>
-            </fieldset>
-
-            <fieldset>
-              <legend data-t="form.delivery">交收方式</legend>
-              <div class="pills" id="delivery"></div>
-              <p class="hint" id="delivery-note"></p>
-            </fieldset>
-
-            <div id="address-wrap">
-              <label for="f-address" data-t="form.address">收件地址</label>
-              <textarea id="f-address" name="address" class="field" rows="3" autocomplete="street-address" maxlength="500"></textarea>
-            </div>
-
-            <div>
-              <label for="f-notes" data-t="form.notes">備註（選填）</label>
-              <textarea id="f-notes" name="notes" class="field" rows="2" maxlength="1000"></textarea>
-            </div>
-
-            <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="_gotcha" type="text" tabindex="-1" autocomplete="off"></div>
-
-            <label class="check"><input id="f-agree" type="checkbox"><span><span data-t="form.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="form.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="form.agree.c">，並確認以上資料正確。</span></span></label>
-
-            <p class="error" id="error" role="alert" hidden></p>
-            <button class="btn btn-solid btn-lg" type="submit" id="submit" data-t="form.submit">核對訂單</button>
-            <p class="hint" data-t="form.hint">按「核對訂單」確認內容後，會開啟付款頁面。查詢請用文字訊息，本店不接受語音訊息。</p>
-          </form>
-
-        </div>
       </div>
     </section>
 
@@ -201,7 +149,7 @@
     <section id="faq" class="section wrap">
       <h2 class="reveal" data-t="faq.title">常見問題</h2>
       <div class="faq">
-        <details><summary data-t="faq.1.q">點樣落單？</summary><p data-t="faq.1.a">請先註冊並登入帳戶，再填寫網頁上的落單表格。本店只接受透過表格落單。</p></details>
+        <details><summary data-t="faq.1.q">點樣落單？</summary><p data-t="faq.1.a">把專輯加入購物車，按結帳，登入後填寫聯絡及交收資料即可。本店只接受網上結帳落單。</p></details>
         <details><summary data-t="faq.2.q">可以預留貨品嗎？</summary><p data-t="faq.2.a">不可以。本店售完即止，不設預留。</p></details>
         <details><summary data-t="faq.3.q">運費點計？</summary><p data-t="faq.3.a">選順豐到付，運費由你在收件時付給順豐，大量購買亦可。到將軍澳門市自取則不用運費。</p></details>
         <details><summary data-t="faq.4.q">點樣查詢？</summary><p><span data-t="faq.4.a">請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="faq.4.b">，並表示有意購買 xx。本店不接受語音訊息。</span></p></details>
@@ -217,18 +165,6 @@
       <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
     </div>
   </footer>
-
-  <dialog class="review" id="review" aria-labelledby="review-title">
-    <h3 id="review-title" data-t="review.title">請核對訂單</h3>
-    <div class="summary" id="review-summary"></div>
-    <dl class="review-info" id="review-info"></dl>
-    <p class="error" id="review-error" role="alert" hidden></p>
-    <div class="review-actions">
-      <button class="btn btn-line" type="button" id="review-back" data-t="review.back">返回修改</button>
-      <button class="btn btn-solid" type="button" id="review-ok">確認訂單，前往付款</button>
-    </div>
-    <p class="hint" data-t="review.hint">確認後訂單會送出，並開啟付款頁面。</p>
-  </dialog>
 
   <dialog class="review acct" id="acct" aria-labelledby="acct-title">
     <h3 id="acct-title">登入帳戶</h3>
@@ -266,6 +202,8 @@
   <script src="fb.js"></script>
   <script src="texts.js"></script>
   <script src="account.js"></script>
+  <script src="catalog.js"></script>
+  <script src="cart.js"></script>
   <script src="fx.js"></script>
   <script src="soon-lib.js"></script>
   <script src="script.js"></script>
