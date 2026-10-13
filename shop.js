@@ -591,10 +591,23 @@ export function setupShop(ctx) {
     const rep = profitReport({ sales, purchases, expenses, from: r.from, to: r.to });
     lastReport = rep;
     const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 + "%" : "–");
-    const card = (k, v, cls) => '<div class="stat ' + (cls || "") + '"><small>' + k + "</small><b>" + v + "</b></div>";
-    let html = '<div class="stat-row big">' + card("營業額", money(rep.revenue)) + card("銷貨成本", money(rep.cogs)) + card("毛利", money(rep.grossProfit) + " <small>" + pct(rep.grossProfit, rep.revenue - rep.unknownRevenue) + "</small>") +
-      card("租金及開支", money(rep.expenseTotal)) + card("淨利潤", money(rep.netProfit), rep.netProfit < 0 ? "neg" : "pos") + "</div>" +
-      '<p class="hint">' + rep.saleCount + " 單，售出 " + rep.itemQty + " 件。淨利潤 = 營業額 − 銷貨成本（連運費）− 租金及開支（按日數分攤）。</p>";
+    // 總覽: total revenue, total cost (goods sold + rent + other costs) and profit, each with where it comes from
+    const line = (k, v, note) => "<div><span>" + k + (note ? "<small>" + note + "</small>" : "") + "</span><b>" + money(v) + "</b></div>";
+    const src = rep.revenueBySource;
+    let html = '<div class="pl">' +
+      '<div class="pl-col"><small>總收入</small><b class="pl-big">' + money(rep.revenue) + '</b><div class="pl-lines">' +
+        line("門市收銀", src.pos) + line("POS 貼上紀錄", src.import) + line("網站訂單", src.web, "已確認的訂單") + "</div></div>" +
+      '<div class="pl-op" aria-hidden="true">−</div>' +
+      '<div class="pl-col"><small>總成本</small><b class="pl-big">' + money(rep.totalCost) + '</b><div class="pl-lines">' +
+        line("貨品成本", rep.cogs, "已賣出貨品的進貨價及運費") + line("租金", rep.rentTotal, "按日數分攤") + line("其他開支", rep.otherExpenseTotal) + "</div></div>" +
+      '<div class="pl-op" aria-hidden="true">=</div>' +
+      '<div class="pl-col pl-res ' + (rep.netProfit < 0 ? "is-neg" : "is-pos") + '"><small>總利潤</small><b class="pl-big">' + money(rep.netProfit) + '</b><div class="pl-lines">' +
+        line("毛利（收入 − 貨品成本）", rep.grossProfit) + "<div><span>利潤率</span><b>" + pct(rep.netProfit, rep.revenue) + "</b></div></div></div>" +
+      "</div>" +
+      '<div class="pl-cash"><div><small>期內進貨支出</small><b>' + money(rep.stockBought) + "</b></div>" +
+      '<div><small>現金淨額（收入 − 進貨支出 − 租金及開支）</small><b class="' + (rep.cashNet < 0 ? "is-neg" : "") + '">' + money(rep.cashNet) + "</b></div></div>" +
+      '<p class="hint">' + rep.saleCount + " 單，售出 " + rep.itemQty + " 件。總利潤只計已賣出貨品的成本；未賣出的存貨不算虧損。現金淨額則把這段時間所有入貨支出都計算在內，方便你看實際收支。</p>";
+    if (rep.guessedItems) html += '<p class="hint">已預售／未到貨的 ' + rep.guessedItems + " 項銷售沒有指定進貨單，已按貨品名稱配對進貨單，成本 " + money(rep.guessedCost) + " 已計入。名稱不同的貨品請在「進貨及成本」使用相同名稱。</p>";
     if (rep.unknownItems) html += '<p class="o-warn">⚠ 有 ' + rep.unknownItems + " 項銷售（共 " + money(rep.unknownRevenue) + "）找不到進貨成本，未計入成本，毛利會偏高。請在「進貨及成本」補上進貨單，或在銷售紀錄刪除後重新輸入。</p>";
     if (purchases.some((p) => calcPurchase(p).rateMissing)) html += '<p class="o-warn">⚠ 有進貨單未填匯率，成本未能計算。</p>';
     html += "<h2 class=\"sec\">各貨品利潤</h2>" + (rep.products.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>貨品</th><th>售出</th><th>營業額</th><th>成本</th><th>利潤</th><th>利潤率</th></tr></thead><tbody>' +
@@ -611,7 +624,10 @@ export function setupShop(ctx) {
     if (!lastReport) return;
     const rows = [["貨品", "售出", "營業額", "成本", "利潤"]];
     lastReport.products.forEach((p) => rows.push([p.name, p.qty, round2(p.revenue), round2(p.cost), round2(p.profit)]));
-    rows.push([], ["營業額", round2(lastReport.revenue)], ["銷貨成本", round2(lastReport.cogs)], ["毛利", round2(lastReport.grossProfit)], ["租金及開支", round2(lastReport.expenseTotal)], ["淨利潤", round2(lastReport.netProfit)]);
+    const r = lastReport, src = r.revenueBySource;
+    rows.push([], ["總收入", round2(r.revenue)], ["  門市收銀", round2(src.pos)], ["  POS 貼上紀錄", round2(src.import)], ["  網站訂單", round2(src.web)],
+      ["總成本", round2(r.totalCost)], ["  貨品成本", round2(r.cogs)], ["  租金", round2(r.rentTotal)], ["  其他開支", round2(r.otherExpenseTotal)],
+      ["毛利", round2(r.grossProfit)], ["總利潤", round2(r.netProfit)], [], ["期內進貨支出", round2(r.stockBought)], ["現金淨額", round2(r.cashNet)]);
     download("mhkpop-profit.csv", rows);
   });
 

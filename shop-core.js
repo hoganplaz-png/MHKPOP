@@ -161,8 +161,8 @@
   window.addEventListener("storage", function (e) { if (e.key === KEY) { items = read(); syncCount(); renderCart(); listeners.forEach(function (fn) { fn("storage"); }); } });
 
   // ---------- cart button, slide-out cart, toast ----------
-  var onHome = !!$("#order-form");
-  var checkoutHref = onHome ? "#order" : "index.html#order";
+  var onHome = !!$("#grid");
+  var checkoutHref = "checkout.html";
   var drawer = null;
   function buildDrawer() {
     if (drawer || !document.body) return;

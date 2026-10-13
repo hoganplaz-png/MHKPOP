@@ -57,7 +57,7 @@
     if (!M.buyable(p) || room() <= 0) return;
     M.addWithFx(p, n, mode(), $("#pd-sleeve"));
     n = 1; syncQty();
-    if (go) location.href = "index.html#order";
+    if (go) location.href = "checkout.html";
   }
   $("#pd-dec").addEventListener("click", function () { n--; syncQty(); });
   $("#pd-inc").addEventListener("click", function () { n++; syncQty(); });

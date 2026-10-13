@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="checkout.css">
   <link rel="stylesheet" href="pay.css">
 </head>
 <body>
@@ -21,13 +22,20 @@
   </header>
 
   <main class="wrap pay">
+    <ol class="stepper" id="stepper" aria-label="結帳步驟" hidden>
+      <li class="done" data-s="1"><span class="dot">1</span><b data-t="co.s1">購物車</b></li>
+      <li class="done" data-s="2"><span class="dot">2</span><b data-t="co.s2">資料及交收</b></li>
+      <li class="on" data-s="3"><span class="dot">3</span><b data-t="co.s3">付款</b></li>
+      <li data-s="4"><span class="dot">4</span><b data-t="co.s4">完成</b></li>
+    </ol>
     <section id="missing" hidden>
       <h1 data-t="pay.missing.t">找不到訂單</h1>
-      <p class="lead" data-t="pay.missing.d">這個頁面需要在落單後開啟。請回到網站填寫落單表格。</p>
-      <p><a class="btn btn-solid" href="/#order" data-t="pay.missing.btn">前往落單表格</a></p>
+      <p class="lead" data-t="pay.missing.d">這個頁面需要在落單後開啟。請回到購物車重新結帳。</p>
+      <p><a class="btn btn-solid" href="/checkout.html" data-t="pay.missing.btn">前往結帳</a></p>
     </section>
 
     <section id="pay" hidden>
+      <div id="pay-step">
       <p class="caps kicker" id="pay-no"></p>
       <h1><span data-t="pay.h1">請付款</span> <span id="pay-amount"></span></h1>
       <p class="lead" data-t="pay.lead">你的訂單已收到。請選擇付款方式，並在付款備註寫上訂單編號。</p>
@@ -61,7 +69,18 @@
         <summary data-t="pay.sum">查看訂單內容</summary>
         <div class="summary" id="sum-body"></div>
       </details>
+      <div class="co-actions"><span></span><button type="button" class="btn btn-solid btn-lg" id="pay-done" data-t="co.paid">我已付款，完成</button></div>
       <p class="hint"><span data-t="pay.help.a">遇到問題？請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="pay.help.b">（請用文字訊息，並附上訂單編號）。</span></p>
+      </div>
+
+      <div class="done-card" id="done" hidden>
+        <div class="done-tick" aria-hidden="true"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h2 data-t="co.done.h">多謝你的訂單！</h2>
+        <span class="done-no" id="done-no"></span>
+        <p class="lead" id="done-lead"></p>
+        <div class="summary" id="done-sum"></div>
+        <div class="row"><a class="btn btn-solid btn-lg" href="me.html" data-t="pay.me">查看我的訂單及進度</a><a class="btn btn-line btn-lg" href="index.html#shelf" data-t="co.more">繼續選購</a></div>
+      </div>
     </section>
   </main>
 

@@ -18,7 +18,7 @@
   if (!order || order.orderNo !== no) order = { orderNo: no, total: amt, items: null };
   var valid = /^MH-[A-Z0-9]{3,18}$/.test(order.orderNo) && isFinite(order.total) && order.total >= 0;
   if (!valid) { $("#missing").hidden = false; return; }
-  $("#pay").hidden = false;
+  $("#pay").hidden = false; $("#stepper").hidden = false;
   $("#pay-amount").textContent = money(order.total);
   $("#ref-no").textContent = order.orderNo;
   $("#ref-amount").textContent = money(order.total);
@@ -153,17 +153,33 @@
         var fs = r.c.fs;
         return fs.addDoc(fs.collection(r.c.db, "proofs"), { orderNo: order.orderNo, image: proofImage, note: $("#proof-note").value.trim(), createdAt: fs.serverTimestamp() });
       }).then(function () {
-        $("#proof-done").hidden = false; proofImage = ""; $("#proof-file").value = ""; $("#proof-preview").innerHTML = ""; $("#proof-note").value = "";
+        proofSent = true; $("#proof-done").hidden = false; proofImage = ""; $("#proof-file").value = ""; $("#proof-preview").innerHTML = ""; $("#proof-note").value = "";
       }).catch(function (e) {
         if (e && e.message === "login") {
           err.textContent = "";
           var t = document.createTextNode(T("pay.proof.login") + " ");
-          var a = document.createElement("a"); a.href = "/#order"; a.textContent = T("pay.proof.loginLink");
+          var a = document.createElement("a"); a.href = "/checkout.html"; a.textContent = T("pay.proof.loginLink");
           err.appendChild(t); err.appendChild(a); err.hidden = false;
         } else fail(T("pay.proof.fail"));
-      }).then(function () { btn.disabled = false; btn.textContent = T("pay.proof.send"); });
+      }).then(function () { btn.disabled = false; btn.textContent = T("pay.proof.send"); if (proofSent) setTimeout(finish, 1200); });
     });
   }
+
+  // step 4: confirmation (after the screenshot is sent, or when the customer says they have paid)
+  var proofSent = false;
+  function finish() {
+    $("#pay-step").hidden = true; $("#done").hidden = false;
+    var li = document.querySelectorAll("#stepper li");
+    Array.prototype.forEach.call(li, function (el) { var s = +el.dataset.s; el.classList.toggle("done", s <= 3); el.classList.toggle("on", s === 4); });
+    $("#done-no").textContent = order.orderNo;
+    $("#done-lead").textContent = T(proofSent ? "co.done.lead" : "co.done.pending");
+    if (order.items && order.items.length) {
+      $("#done-sum").innerHTML = order.items.map(function (i) { return "<div><span>" + esc(dn(i.group, i.name)) + " × " + i.qty + "</span><span>" + money(i.price * i.qty) + "</span></div>"; }).join("") +
+        '<div class="tot"><span>' + esc(T("pay.total")) + "</span><span>" + money(order.total) + "</span></div>";
+    }
+    window.scrollTo(0, 0);
+  }
+  $("#pay-done").addEventListener("click", finish);
 
   start(null);
   Promise.all([window.MHT.init(), loadRemote()]).then(function (r) { paintOrder(); if (r[1]) start(r[1]); else render(); });
