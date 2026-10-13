@@ -151,6 +151,7 @@
     "pay.order": "訂單 {no}",
     "pay.total": "貨品總額（未計運費）",
     "pay.delivery": "交收：{delivery}",
+    "pay.needLogin": "請先登入你落單時使用的帳戶，才會顯示付款二維碼及收款資料。",
     "pay.none": "暫時未有付款方式。請在 Instagram 私訊我們。",
     "pay.qrAlt": "{name} 付款二維碼",
     "pay.download": "下載二維碼",

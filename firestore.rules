@@ -7,7 +7,8 @@ rules_version = '2';
 //  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
 //  - Purchases, sales and expenses (the shop-management pages): only the admin can read or write them.
 //  - Coming-soon products and extra pages: anyone can read the published ones; only the admin can change them.
-//  - Products, payment methods, website text and wording: anyone can READ them (that is what the website shows).
+//  - Payment methods (QR codes): only signed-in customers can read them.
+//  - Products, website text and wording: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -104,7 +105,7 @@ service cloud.firestore {
       return signedIn()
         && d.keys().hasOnly(['orderNo', 'image', 'note', 'createdAt'])
         && d.orderNo is string && d.orderNo.matches('MH-[A-Z0-9]{3,18}')
-        && d.image is string && d.image.size() <= 400000 && d.image.matches('data:image/.*')
+        && d.image is string && d.image.size() <= 400000 && d.image.matches('data:image/(jpeg|png|webp);base64,.*')
         && d.note is string && d.note.size() <= 200
         && d.createdAt == request.time
         && exists(/databases/$(database)/documents/orders/$(d.orderNo))
@@ -117,8 +118,9 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Payment methods (QR codes, account details) are only shown to signed-in customers and the admin.
     match /payments/{paymentId} {
-      allow read: if true;
+      allow read: if signedIn();
       allow create, update: if isAdmin() && validPayment();
       allow delete: if isAdmin();
     }

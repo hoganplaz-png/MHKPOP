@@ -32,8 +32,8 @@ window.SETTINGS = {
   // These two are used until you save your own list there.
   paymentNote: "付款時請在備註寫上訂單編號。付款後可在此頁上傳付款截圖，我們收到款項並核對後會確認訂單。",
   defaultPayments: [
-    { name: "PayMe", type: "qr", image: "assets/payme-qr.jpg", details: "打開 PayMe，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
-    { name: "支付寶 Alipay", type: "qr", image: "assets/alipay-qr.jpg", details: "打開支付寶，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
+    { name: "PayMe", type: "qr", image: "", details: "打開 PayMe，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
+    { name: "支付寶 Alipay", type: "qr", image: "", details: "打開支付寶，掃描二維碼付款，並在備註寫上訂單編號。", link: "" },
   ],
 
   // ---------- 5. 交收方式 DELIVERY ----------

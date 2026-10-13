@@ -16,6 +16,7 @@
         "README.md",
         "products-template.csv",
         "tests/**",
+        "assets/*-qr*",
         "docs/**",
         "redirect/**"
       ],

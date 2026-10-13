@@ -396,7 +396,7 @@ if (!cfg) {
   const PAY_TYPE = { qr: "二維碼", text: "文字資料", link: "付款連結" };
   function renderPayments() {
     $("#empty-pay").hidden = payments.length > 0;
-    $("#import-pay").hidden = payments.length > 0 || !(DEFAULTS.defaultPayments && DEFAULTS.defaultPayments.length);
+    $("#import-pay").hidden = true;
     $("#payments").innerHTML = payments.map((m, i) => {
       const thumb = m.type === "qr" && m.image ? '<img src="' + esc(m.image) + '" alt="">' : "<span>" + esc((m.name || "?").slice(0, 2)) + "</span>";
       return '<article class="prod' + (m.enabled === false ? " is-hidden" : "") + '" data-id="' + m.id + '">' +
