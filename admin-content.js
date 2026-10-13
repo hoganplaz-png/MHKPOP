@@ -12,19 +12,34 @@ export function setupContent(ctx) {
   function start() {
     stop();
     const err = (e) => { if (!e || e.code !== "permission-denied") notice("載入內容失敗，請稍後再試。"); };
-    unsubs.push(onSnapshot(collection(db, "upcoming"), (snap) => { upcoming = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderUpcoming(); }, err));
+    unsubs.push(onSnapshot(collection(db, "upcoming"), (snap) => { upcoming = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderUpcoming(); convertReleased(); }, err));
     unsubs.push(onSnapshot(collection(db, "pages"), (snap) => { pages = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderPages(); }, err));
   }
   function stop() { unsubs.forEach((u) => u()); unsubs = []; upcoming = []; pages = []; }
 
   // ================= 即將發售 =================
+  // Nothing runs on a server, so the first time the admin page is open after a release date the product is written to 商品 for real
+  // (the website already shows it as a normal product from that day, with the same id, so it is never listed twice)
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
+  const converting = new Set();
+  function convertReleased() {
+    upcoming.filter((u) => u.autoSell && !u.converted && u.releaseDate && u.releaseDate <= today() && u.price != null && !converting.has(u.id)).forEach((u) => {
+      converting.add(u.id);
+      const maxOrder = (ctx.getWebProducts() || []).reduce((m, p) => Math.max(m, p.order || 0), 0);
+      const p = { group: u.group || "MHKPOP", name: u.title, price: Number(u.price), tag: "", image: u.image || "", status: "ok", order: maxOrder + 1 };
+      if (u.storeOnly) p.channels = ["sf"];
+      setDoc(doc(db, "products", "up-" + u.id), p)
+        .then(() => updateDoc(doc(db, "upcoming", u.id), { converted: true, updatedAt: serverTimestamp() }))
+        .then(() => notice("「" + u.title + "」已到發售日，已自動加入商品。"))
+        .catch(() => converting.delete(u.id));
+    });
+  }
   const dateKey = (u) => u.releaseDate || "9999-99-99";
   function renderUpcoming() {
     $("#up-empty").hidden = upcoming.length > 0;
-    const today = (function () { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); })();
     $("#up-list").innerHTML = upcoming.slice().sort((a, b) => dateKey(a).localeCompare(dateKey(b)) || String(a.title).localeCompare(String(b.title))).map((u) => {
       const thumb = u.image && /^data:image\//.test(u.image) ? '<img src="' + esc(u.image) + '" alt="">' : "<span>" + esc((u.group || u.title || "?").slice(0, 2)) + "</span>";
-      const when = u.releaseDate ? u.releaseDate + (u.releaseDate <= today ? "（已到發售日）" : "") : (u.releaseText || "發售日待定");
+      const when = u.releaseDate ? u.releaseDate + (u.converted ? "（已轉為商品）" : u.releaseDate <= today() ? (u.autoSell ? "（已自動轉為商品）" : "（已到發售日）") : (u.autoSell ? "（到時自動變成商品）" : "")) : (u.releaseText || "發售日待定");
       return '<article class="prod' + (u.published ? "" : " is-hidden") + '" data-id="' + esc(u.id) + '"><div class="thumb">' + thumb + "</div>" +
         '<div class="p-main"><div class="p-group">' + esc(u.group || "") + '</div><div class="p-name">' + esc(u.title) + '</div><div class="p-meta">' + esc(when) + (u.price ? " · " + money(u.price) : "") + (u.published ? "" : " · 已隱藏") + "</div>" +
         (u.storeOnly ? '<div class="badges"><span class="badge">只限格仔舖現貨</span></div>' : "") + "</div>" +
@@ -42,7 +57,7 @@ export function setupContent(ctx) {
     $("#updlg-title").textContent = u ? "編輯即將發售商品" : "新增即將發售商品";
     $("#u-group").value = u ? u.group || "" : ""; $("#u-title").value = u ? u.title : ""; $("#u-date").value = u ? u.releaseDate || "" : "";
     $("#u-text").value = u ? u.releaseText || "" : ""; $("#u-price").value = u && u.price != null ? u.price : ""; $("#u-note").value = u ? u.note || "" : "";
-    $("#u-store").checked = !!(u && u.storeOnly); $("#u-linklabel").value = u ? u.linkLabel || "" : ""; $("#u-link").value = u ? u.link || "" : "";
+    $("#u-store").checked = !!(u && u.storeOnly); $("#u-auto").checked = !!(u && u.autoSell); $("#u-linklabel").value = u ? u.linkLabel || "" : ""; $("#u-link").value = u ? u.link || "" : "";
     $("#u-pub").checked = u ? !!u.published : true; $("#u-photo").value = ""; setUpPhoto(u ? u.image : "");
     $("#u-error").hidden = true; $("#u-delete").hidden = !u; updlg.showModal();
   }
@@ -61,7 +76,8 @@ export function setupContent(ctx) {
     if (!title) return bad("請填寫名稱。");
     if (link && !safeLink(link)) return bad("按鈕連結要以 https://、/ 或 # 開頭。");
     if (priceRaw !== "" && !(Number(priceRaw) >= 0)) return bad("售價請填寫正確的數字。");
-    const data = { title, group: $("#u-group").value.trim(), releaseDate: $("#u-date").value, releaseText: $("#u-text").value.trim(), note: $("#u-note").value.trim(), storeOnly: $("#u-store").checked,
+    if ($("#u-auto").checked && (!$("#u-date").value || priceRaw === "")) return bad("要自動變成正式商品，請填寫發售日期和預計售價。");
+    const data = { title, group: $("#u-group").value.trim(), releaseDate: $("#u-date").value, releaseText: $("#u-text").value.trim(), note: $("#u-note").value.trim(), storeOnly: $("#u-store").checked, autoSell: $("#u-auto").checked, converted: !!(editingUp && editingUp.converted && $("#u-auto").checked),
       linkLabel: $("#u-linklabel").value.trim(), link, published: $("#u-pub").checked, image: upPhoto, updatedAt: serverTimestamp() };
     if (priceRaw !== "") data.price = Number(priceRaw); else if (editingUp && editingUp.price != null) data.price = deleteField();
     err.hidden = true; btn.disabled = true;
