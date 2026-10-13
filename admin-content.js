@@ -121,7 +121,7 @@ export function setupContent(ctx) {
   };
   const TYPES = { heading: "大標題", text: "文字", image: "圖片", products: "商品", button: "按鈕", countdown: "倒數計時", code: "優惠碼", divider: "分隔線" };
   function targetOptions(cur) {
-    const base = [["#order", "落單表格"], ["/soon", "即將發售頁"], ["/", "首頁"]].concat(pages.filter((p) => !editingPg || p.id !== editingPg.id).map((p) => ["/p/" + p.id, "版面：" + p.title]), [["ig", "Instagram"], ["custom", "自訂網址…"]]);
+    const base = [["#order", "結帳頁"], ["/soon", "即將發售頁"], ["/", "首頁"]].concat(pages.filter((p) => !editingPg || p.id !== editingPg.id).map((p) => ["/p/" + p.id, "版面：" + p.title]), [["ig", "Instagram"], ["custom", "自訂網址…"]]);
     const known = base.some((o) => o[0] === cur);
     return base.map((o) => '<option value="' + esc(o[0]) + '"' + ((known ? o[0] === cur : o[0] === "custom") ? " selected" : "") + ">" + esc(o[1]) + "</option>").join("");
   }
@@ -192,7 +192,7 @@ export function setupContent(ctx) {
   });
   document.querySelectorAll("#pgdlg [data-add]").forEach((b) => b.addEventListener("click", () => {
     const type = b.dataset.add, init = { type, id: uid() };
-    if (type === "button") Object.assign(init, { target: "#order", label: "立即落單" });
+    if (type === "button") Object.assign(init, { target: "#order", label: "前往結帳" });
     const el = addBlock(init); el.scrollIntoView({ block: "nearest" });
     const first = el.querySelector("input,textarea"); if (first) first.focus();
   }));

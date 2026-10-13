@@ -1,6 +1,6 @@
 # MHKPOP shop website
 
-Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list, **create an account**, and order **only through the order form**.
+Information website for MH KPOP SELL (@mh.kpop.sell). Customers read the price list, **create an account**, and order **only through the checkout** (cart, details, payment, done).
 You run everything from the admin page, with no coding.
 
 Live site: https://mhkpop.web.app  ·  Admin page: https://mhkpop.web.app/admin  (the old address mhkpop-4cf2f.web.app redirects here)
@@ -29,7 +29,7 @@ The names of the delivery choices (順豐到付, 門市自取) can be changed in
 | **進貨及成本** (Purchases and costs) | One card per bulk order: albums, quantity, price paid, selling price, plus shipping and other fees in any currency (with exchange rate). Shipping is spread over the albums (equally, or by value) to give the **cost per album**. Edit anything, any time: costs, profit and margins update everywhere. Selling price and stock left can be edited right in the table |
 | **租金及開支** (Rent and costs) | Monthly rent and any other cost (one-off, monthly or yearly). Rent is spread by day, so any period gets the right share |
 | **會員** (Members) | Every registered account is a member. Set how many points an order earns (default: HK$10 = 1 point) and the tiers (一般 / 銀卡 / 金卡 by total spending, with a points multiplier). Points are added automatically when you set an order to 已確認 (once only; cancelling takes them back). 調整／紀錄 lets you add or deduct points by hand (for example when a customer redeems points) with a reason, and keeps a history |
-| **利潤** (Profit) | Today, yesterday, this week, this month, last month, this year, all time, or your own dates: revenue, cost of goods, gross profit, rent and costs, net profit, profit per album and per day. CSV export |
+| **利潤** (Profit) | Pick today, yesterday, this week, this month, last month, this year, all time, or your own dates. The top shows **總收入 − 總成本 = 總利潤**: revenue split by 收銀 / POS 貼上 / 網站訂單, cost split into goods sold, rent and other costs, and the profit with its margin. Below it: money paid for stock bought in the period and the **現金淨額** (cash view), then profit per album and per day. CSV export |
 
 Profit uses the *current* cost of each batch, so correcting a shipping fee or price in 進貨及成本 corrects the profit of the albums already sold. Sales that cannot be matched to a purchase are flagged and left out of the cost until you fix them.
 The shop-management data (`purchases`, `sales`, `expenses`) can only be read or changed by the admin email.
@@ -38,12 +38,13 @@ The shop-management data (`purchases`, `sales`, `expenses`) can only be read or 
 Each order card on the **訂單** tab has 訂單進度 (已收到訂單 → 已確認收款 → 訂購中／備貨中 → 貨品已到 → 已寄出 or 可到門市取貨 → 已完成), an SF tracking number and a note for the customer. Customers see this on **我的會員及訂單** (`/me`): their tier, points, spending, every order with a timeline (pre-order orders show the ordering and arrived steps), the tracking number and the note. Setting an order to 已確認 also records the sale (stock goes down) and adds the member's points.
 
 ## How ordering and payment work
-0. The customer creates an account (email and password; a verification email is sent) or signs in. The order form is only shown to signed-in customers. Accounts are managed in Firebase console, Authentication, where you can also disable or delete one.
-1. The customer fills in the order form, ticks the box to agree to the Terms and Privacy Policy, and taps **核對訂單**.
-2. A review box shows the items, total, contact, delivery and address. **返回修改** goes back, **確認訂單，前往付款** saves the order and opens the payment page (`/pay`).
-3. The payment page shows the order number, the amount and the payment methods set up on the admin page (PayMe and Alipay are included at the start).
-4. The customer can upload a payment screenshot on the payment page. It is saved for you only and shows inside the order on the admin page (filter: 有付款截圖).
-5. The order appears in the admin page as 新訂單. Check the amount and the order number in your PayMe or Alipay app, then change it to 已確認.
+The checkout has four steps, shown as a progress bar at the top:
+1. **購物車 (Cart)** (`checkout.html`): the customer checks the items, changes quantities, picks 現貨/訂購 and ticks add-ons. An order summary stays beside it.
+2. **資料及交收 (Details)**: the customer signs in (email and password; accounts are in Firebase console, Authentication), fills in name, Instagram or phone, delivery and address, ticks the Terms and Privacy Policy box, and presses **確認訂單，前往付款**. The order is saved and the payment page opens.
+3. **付款 (Payment)** (`/pay`): the order number, the amount and the payment methods from the admin page (PayMe and Alipay at the start). The customer can upload a payment screenshot, which is saved for you only and shows inside the order on the admin page (filter: 有付款截圖).
+4. **完成 (Done)**: after the screenshot is sent, or when the customer presses 我已付款，完成, a confirmation with the order number and items is shown.
+
+The order appears in the admin page as 新訂單. Check the amount and the order number in your PayMe or Alipay app, then change it to 已確認.
 
 ### Automatic payment screenshot check
 When you open the 訂單 tab, the admin page reads every payment screenshot (English and Traditional Chinese) and compares it with its order. Under each screenshot it shows **自動核對：相符** (green) or **自動核對：需人手核對** (red) with the reasons, and the filter **需人手核對** lists only the orders that need a look.
@@ -89,11 +90,11 @@ Create it in Firebase console, Project settings, Service accounts, Generate new 
 The deploy creates the web app settings (`firebase-config.js`) by itself.
 
 ## Files
-- `index.html`, `styles.css`, `script.js`: the public website
+- `index.html`, `styles.css`, `script.js`: the public website. `checkout.html`, `checkout.js`, `checkout.css`: the cart and checkout steps (the stepper style is also used by the payment page)
 - `account.js`: customer sign-up and sign-in. `fb.js`: loads Firebase. `texts.js`: the editable-wording system
 - `pay.html`, `pay.js`, `pay.css`: the payment page
 - `terms.html`, `privacy.html`, `legal.css`, `legal.js`: Terms of Service and Privacy Policy
-- `proofcheck.js`: the automatic payment screenshot check (tests: `node tests/proofcheck.test.mjs`). `vendor/tesseract/`: the text reader it uses
+- `proofcheck.js`: the automatic payment screenshot check (tests: `node tests/proofcheck.test.mjs and node tests/shoplib.test.mjs`). `vendor/tesseract/`: the text reader it uses
 - `admin-content.js`: the 即將發售 and 活動頁面 tabs. `soon.html`, `soon.js`, `soon-lib.js`: the coming-soon page. `page.html`, `page.js`, `page.css`: extra pages (`/p/<name>`). `fx.js`: animations (scroll reveals, progress bar, parallax, card spotlight, magnetic buttons, ripples, countdowns, smooth page changes; all off for visitors who prefer reduced motion)
 - `members.js`: the 會員 tab. `me.html`, `me.js`, `me.css`: the customer's membership and order page
 - `shop.js`, `shoplib.js`: the shop-management pages and their calculations (costs, stock, profit, POS-text reader)
@@ -106,4 +107,4 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 ## Look and feel (theme and content)
 - **Theme**: every colour, corner radius, font, shadow and motion curve of the public pages is a CSS variable in the `THEME` block at the top of `styles.css` (`--ink`, `--accent`, `--r-card`, `--font-display`, `--tone-1-bg` ...). Change a value there and every page follows.
 - **Content lists**: `content.js` holds the rotating announcement bar, the perks strip, the hero numbers, the floating cards by the logo and the product-page info tabs. Shop details stay in `settings.js`; all other wording is on the admin page.
-- **Shop pieces**: `shop-core.js` (product rules, cart, product card, announcement bar), `product.html` / `product.js` / `product.css` (one page per album at `product.html?id=...`). The cart is kept in the visitor's browser and feeds the order form.
+- **Shop pieces**: `shop-core.js` (product rules, cart, product card, announcement bar), `product.html` / `product.js` / `product.css` (one page per album at `product.html?id=...`). The cart is kept in the visitor's browser and feeds the checkout.

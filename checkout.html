@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title data-t="co.title">結帳 · MHKPOP</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="checkout.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="index.html"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button>
+        <a class="btn btn-line" href="index.html#shelf" data-t="co.more">繼續選購</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap co">
+    <ol class="stepper" id="stepper" aria-label="結帳步驟">
+      <li data-s="1"><span class="dot">1</span><b data-t="co.s1">購物車</b></li>
+      <li data-s="2"><span class="dot">2</span><b data-t="co.s2">資料及交收</b></li>
+      <li data-s="3"><span class="dot">3</span><b data-t="co.s3">付款</b></li>
+      <li data-s="4"><span class="dot">4</span><b data-t="co.s4">完成</b></li>
+    </ol>
+    <p class="loading" id="co-loading" data-t="shelf.loading">正在載入…</p>
+    <p class="closed" id="closed" hidden><span data-t="ord.closed.a">網上落單暫時未開放。請在 Instagram 私訊 </span><a data-s-ig href="#" target="_blank" rel="noopener">@mh.kpop.sell</a><span data-t="ord.closed.b">，並表示有意購買 xx（請用文字訊息）。</span></p>
+
+    <div class="co-grid" id="co-grid" hidden>
+      <div class="co-main">
+        <!-- step 1 -->
+        <section id="step1" class="co-card">
+          <h1 data-t="co.cart.h">你的購物車</h1>
+          <div id="co-lines"></div>
+          <div class="co-empty" id="co-empty" hidden>
+            <div class="cart-empty-disc" aria-hidden="true"></div>
+            <p data-t="cart.empty">購物車仲係空嘅。</p>
+            <a class="btn btn-solid" href="index.html#shelf" data-t="cart.browse">去睇價目</a>
+          </div>
+          <p class="error" id="err1" role="alert" hidden></p>
+          <div class="co-actions"><a class="link" href="index.html#shelf" data-t="co.more">繼續選購</a><button type="button" class="btn btn-solid btn-lg" id="to2" data-t="co.next">下一步：資料及交收</button></div>
+        </section>
+
+        <!-- step 2 -->
+        <section id="step2" class="co-card" hidden>
+          <h1 data-t="co.info.h">聯絡資料及交收方式</h1>
+          <div class="gate" id="gate" hidden>
+            <h3 data-t="gate.title">請先登入才可落單</h3>
+            <p data-t="gate.text">為保障雙方，落單前需要註冊並登入帳戶。註冊免費，只需要電郵和密碼。</p>
+            <button type="button" class="btn btn-solid btn-lg" id="gate-btn" data-t="gate.btn">登入 / 註冊</button>
+          </div>
+          <form id="co-form" novalidate>
+            <p class="whoami"><span data-t="form.account">登入帳戶：</span><b id="whoami"></b> <button type="button" class="link" id="form-signout" data-t="form.signout">登出</button></p>
+            <div class="two">
+              <div><label for="f-name" data-t="form.name">姓名</label><input id="f-name" class="field" type="text" autocomplete="name" maxlength="100"></div>
+              <div><label for="f-contact" data-t="form.contact">Instagram 或電話</label><input id="f-contact" class="field" type="text" autocomplete="tel" maxlength="100"></div>
+            </div>
+            <fieldset>
+              <legend data-t="form.delivery">交收方式</legend>
+              <div class="pills" id="delivery"></div>
+              <p class="hint" id="delivery-note"></p>
+            </fieldset>
+            <div id="address-wrap"><label for="f-address" data-t="form.address">收件地址</label><textarea id="f-address" class="field" rows="3" autocomplete="street-address" maxlength="500"></textarea></div>
+            <div><label for="f-notes" data-t="form.notes">備註（選填）</label><textarea id="f-notes" class="field" rows="2" maxlength="1000"></textarea></div>
+            <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" type="text" tabindex="-1" autocomplete="off"></div>
+            <label class="check"><input id="f-agree" type="checkbox"><span><span data-t="form.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="form.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="form.agree.c">，並確認以上資料正確。</span></span></label>
+            <p class="error" id="err2" role="alert" hidden></p>
+            <div class="co-actions"><button type="button" class="link" id="back1" data-t="co.back">← 返回購物車</button><button type="submit" class="btn btn-solid btn-lg" id="submit" data-t="co.place">確認訂單，前往付款</button></div>
+            <p class="hint" data-t="co.hint">按下後訂單會送出，並進入付款頁面。查詢請用文字訊息，本店不接受語音訊息。</p>
+          </form>
+        </section>
+      </div>
+
+      <aside class="co-sum" aria-labelledby="sum-h">
+        <h2 id="sum-h" data-t="co.sum.h">訂單摘要</h2>
+        <div id="sum-lines"></div>
+        <div class="sum-row"><span data-t="co.sub">貨品小計</span><b id="sum-sub">HK$0</b></div>
+        <div class="sum-row"><span data-t="co.ship">運費</span><span id="sum-ship" data-t="co.ship.v">順豐到付／自取免運費</span></div>
+        <div class="sum-row sum-total"><span data-t="co.total">應付總額</span><b id="sum-total">HK$0</b></div>
+        <ul class="trust"><li data-t="co.trust1">售完即止，不設預留</li><li data-t="co.trust2">付款後可上傳截圖，我們核對後確認</li><li data-t="co.trust3">順豐運費在收件時付給順豐</li></ul>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
+  <dialog class="review acct" id="acct" aria-labelledby="acct-title">
+    <h3 id="acct-title">登入帳戶</h3>
+    <div id="acct-out">
+      <div class="tabs2" role="tablist">
+        <button type="button" role="tab" id="acct-tab-in" aria-selected="true" data-t="acct.tab.in">登入</button>
+        <button type="button" role="tab" id="acct-tab-up" aria-selected="false" data-t="acct.tab.up">註冊</button>
+      </div>
+      <form id="acct-form" novalidate>
+        <div id="acct-name-wrap" hidden><label for="a-name" data-t="acct.name">姓名</label><input id="a-name" class="field" type="text" autocomplete="name" maxlength="60"></div>
+        <label for="a-email" data-t="acct.email">電郵地址</label>
+        <input id="a-email" class="field" type="email" autocomplete="email" maxlength="120">
+        <label for="a-pw" data-t="acct.pw">密碼</label>
+        <input id="a-pw" class="field" type="password" autocomplete="current-password" maxlength="100">
+        <p class="hint" id="acct-pw-hint" hidden data-t="acct.pw.hint">密碼至少 8 個字元。</p>
+        <label class="check" id="acct-agree-wrap" hidden><input id="a-agree" type="checkbox"><span><span data-t="acct.agree.a">我已閱讀並同意</span> <a href="terms.html" target="_blank" rel="noopener" data-t="legal.terms">服務條款</a> <span data-t="acct.agree.b">及</span> <a href="privacy.html" target="_blank" rel="noopener" data-t="legal.privacy">私隱政策</a><span data-t="acct.agree.c">。</span></span></label>
+        <p class="error" id="acct-error" role="alert" hidden></p>
+        <p class="hint" id="acct-info" role="status" hidden></p>
+        <button class="btn btn-solid" type="submit" id="acct-submit">登入</button>
+        <button type="button" class="link" id="acct-forgot" data-t="acct.forgot">忘記密碼？</button>
+      </form>
+    </div>
+    <div id="acct-in" hidden>
+      <p><span data-t="acct.me">已登入：</span> <b id="acct-me"></b></p>
+      <p class="hint" id="acct-verify" hidden data-t="acct.verify">請到你的電郵信箱（包括垃圾郵件）按驗證連結，完成電郵驗證。</p>
+      <a class="btn btn-solid" href="me.html" data-t="acct.me.link">我的會員及訂單</a>
+      <button type="button" class="btn btn-line" id="acct-signout" data-t="acct.signout">登出</button>
+    </div>
+    <div class="review-actions"><button type="button" class="btn btn-line" id="acct-close" data-t="acct.close">關閉</button></div>
+  </dialog>
+
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="account.js"></script>
+  <script src="fx.js"></script>
+  <script src="content.js"></script>
+  <script src="shop-core.js"></script>
+  <script src="checkout.js"></script>
+</body>
+</html>

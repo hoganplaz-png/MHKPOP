@@ -1,0 +1,64 @@
+/* checkout and the stepper shared with the payment page */
+.co { padding-top: clamp(24px, 4vw, 48px); padding-bottom: clamp(56px, 7vw, 96px); }
+.stepper { list-style: none; margin: 0 0 clamp(24px, 4vw, 40px); padding: 0; display: flex; gap: 0; counter-reset: none; }
+.stepper li { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; text-align: center; color: var(--muted); font-size: 13px; }
+.stepper li::before { content: ""; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; background: var(--line-strong); z-index: 0; }
+.stepper li:first-child::before, .stepper li:first-child::after { display: none; }
+.stepper li::after { content: ""; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; transition: transform .6s var(--ease-out); z-index: 0; }
+.stepper li.on::after, .stepper li.done::after { transform: scaleX(1); }
+.stepper .dot { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--cream); border: 2px solid var(--line-strong); font-family: var(--font-display); font-weight: 600; transition: background .4s, color .4s, border-color .4s, transform .5s var(--ease-spring); }
+.stepper li.on .dot { background: var(--ink); color: var(--cream); border-color: var(--ink); transform: scale(1.12); }
+.stepper li.done .dot { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+.stepper li.done .dot { font-size: 0; }
+.stepper li.done .dot::before { content: "✓"; font-size: 16px; }
+.stepper li.on b, .stepper li.done b { color: var(--ink); }
+.stepper b { font-weight: 700; }
+
+.co-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 28px; align-items: start; }
+.co-card { background: var(--cream); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(18px, 3vw, 36px); animation: coIn .5s var(--ease-out) both; }
+@keyframes coIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.co-card h1 { display: block; font-family: var(--font-body); font-size: clamp(24px, 3vw, 32px); font-weight: 900; letter-spacing: -.01em; margin-bottom: 18px; }
+.co-card form { display: flex; flex-direction: column; gap: 20px; }
+.co-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-top: 22px; }
+.co-card form .co-actions { margin-top: 4px; }
+.co-line { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; gap: 8px 16px; align-items: center; padding: 16px 0; border-top: 1px solid var(--line); }
+.co-line.is-off { opacity: .5; }
+.co-info { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.co-info .caps { font-size: 12px; letter-spacing: .12em; color: var(--muted); }
+.co-info a:not(.link) { font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+.co-info small { color: var(--muted); font-size: 13px; }
+.co-info .link { padding: 4px 0; min-height: 32px; font-size: 13px; color: var(--muted); }
+.co-price { font-family: var(--font-display); font-size: 18px; font-weight: 500; min-width: 84px; text-align: right; }
+.co-line .addons { grid-column: 2 / -1; }
+.co-line .qty-sm button { width: 36px; height: 36px; }
+.co-empty { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 36px 0; text-align: center; color: var(--muted); }
+.co-sum { position: sticky; top: 84px; background: var(--cream); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(18px, 2.4vw, 28px); }
+.co-sum h2 { font-size: 22px; letter-spacing: 0; margin-bottom: 12px; }
+.sum-item, .sum-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; font-size: 15px; border-bottom: 1px solid var(--line); }
+.sum-item span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.sum-item i { font-style: normal; color: var(--muted); }
+.sum-row { color: var(--muted); font-size: 14px; }
+.sum-row:not(.sum-total) { border-bottom: 0; padding: 6px 0; }
+.sum-total { border-top: 2px solid var(--ink); border-bottom: 0; margin-top: 8px; padding-top: 14px; color: var(--ink); font-weight: 700; align-items: baseline; }
+.sum-total b { font-family: var(--font-display); font-size: 30px; font-weight: 500; }
+.trust { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed var(--line-strong); display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+.trust li { display: flex; gap: 8px; }
+.trust li::before { content: "✓"; color: var(--ink); font-weight: 700; }
+@media (max-width: 900px) { .co-grid { grid-template-columns: 1fr; } .co-sum { position: static; } }
+@media (max-width: 560px) {
+  .co-line { grid-template-columns: 64px minmax(0, 1fr); }
+  .co-qty, .co-price { grid-column: 2; text-align: left; }
+  .co-line .addons { grid-column: 1 / -1; }
+  .stepper li b { font-size: 12px; }
+}
+
+/* confirmation (step 4) */
+.done-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: clamp(28px, 5vw, 56px) clamp(18px, 3vw, 36px); background: var(--cream); border: 1px solid var(--line); border-radius: var(--r-lg); margin-top: 28px; animation: coIn .6s var(--ease-out) both; }
+.done-tick { width: 84px; height: 84px; border-radius: 50%; background: var(--ink); color: var(--cream); display: grid; place-items: center; animation: tickPop .7s var(--ease-spring) both; }
+.done-tick svg { stroke-dasharray: 40; stroke-dashoffset: 40; animation: tickDraw .6s .35s var(--ease-out) forwards; }
+@keyframes tickPop { from { transform: scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tickDraw { to { stroke-dashoffset: 0; } }
+.done-card h2 { margin: 6px 0 0; font-size: clamp(26px, 4vw, 38px); }
+.done-card .lead { max-width: 34em; }
+.done-no { font-family: var(--font-display); font-size: 22px; letter-spacing: .06em; padding: 8px 18px; border-radius: var(--r-pill); background: var(--panel); }
+@media (prefers-reduced-motion: reduce) { .co-card, .done-card, .done-tick, .done-tick svg { animation: none; } .done-tick svg { stroke-dashoffset: 0; } .stepper li::after { transition: none; } }
