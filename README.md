@@ -114,6 +114,6 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 
 One-time setup (the automatic deploy does not do this, because it needs your own accounts):
 1. Upgrade the Firebase project to the **Blaze** plan (pay as you go; a small shop normally stays within the free allowance, but a billing card is required).
-2. Use a Gmail account for sending and create a Google **app password** for it (Google account, Security, 2-Step Verification, App passwords).
-3. In a terminal with `firebase-tools` logged in: `firebase functions:secrets:set SMTP_USER` (the Gmail address), `firebase functions:secrets:set SMTP_PASS` (the app password), then `firebase deploy --only functions`.
+2. Emails are sent from mh.kpop.sell@gmail.com. Sign in to that Google account and create an **app password** (Security, 2-Step Verification, App passwords).
+3. In a terminal with `firebase-tools` logged in: `firebase functions:secrets:set SMTP_PASS` (paste the app password), then `firebase deploy --only functions`.
 Secrets stay in Firebase, never in this repository. Gmail allows roughly 500 emails a day; a service such as Resend can replace it later by changing `functions/index.js`.
