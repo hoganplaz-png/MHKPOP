@@ -41,13 +41,20 @@ jobs:
       - name: Check the admin email for the order system
         id: orders
         run: |
-          EMAIL=$(tr -d ' \r\n' < admin-email.txt 2>/dev/null || true)
-          if printf '%s' "$EMAIL" | grep -Eq '^[^@'"'"' ]+@[^@'"'"' ]+\.[^@'"'"' ]+$'; then
+          # One admin email per line. Every email listed gets full admin rights.
+          EMAILS=$(tr -d ' \r' < admin-email.txt 2>/dev/null | grep -v '^$' || true)
+          OK=true
+          [ -n "$EMAILS" ] || OK=false
+          for E in $EMAILS; do
+            printf '%s' "$E" | grep -Eq '^[^@'"'"' ]+@[^@'"'"' ]+\.[^@'"'"' ]+$' || OK=false
+          done
+          if [ "$OK" = true ]; then
             echo "on=true" >> "$GITHUB_OUTPUT"
-            echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+            # Becomes the inside of the rules list: a', 'b
+            echo "email=$(printf '%s\n' $EMAILS | paste -sd, - | sed "s/,/', '/g")" >> "$GITHUB_OUTPUT"
           else
             echo "on=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::admin-email.txt is missing or not an email. The website is deployed without the order system."
+            echo "::warning::admin-email.txt is missing or has a line that is not an email. The website is deployed without the order system."
           fi
 
       - name: Set up the order system (web app, database)
