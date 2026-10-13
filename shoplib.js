@@ -524,3 +524,12 @@ export function orderSteps(order) {
   keys.forEach((k, i) => { if (pIdx(k) <= ci) at = i; });
   return { cancelled: cur === "cancelled", steps: keys.map((k, i) => ({ key: k, label: PROGRESS[pIdx(k)][1], done: i < at, current: i === at })) };
 }
+
+// ================= sale price =================
+// A product can have a sale price (特價) that is used until its last day (saleEnds, inclusive; empty = no end).
+export function effectivePrice(p, today = todayStr()) {
+  const sp = p.salePrice;
+  if (sp !== undefined && sp !== null && sp !== "" && Number.isFinite(Number(sp)) && (!p.saleEnds || today <= p.saleEnds)) return Number(sp);
+  return Number(p.price) || 0;
+}
+export const onSale = (p, today = todayStr()) => effectivePrice(p, today) < (Number(p.price) || 0);

@@ -91,6 +91,10 @@
       "site": "mhkpop",
       "rewrites": [
         {
+          "source": "/soon",
+          "destination": "/soon.html"
+        },
+        {
           "source": "/admin",
           "destination": "/admin.html"
         },
@@ -109,6 +113,10 @@
         {
           "source": "/privacy",
           "destination": "/privacy.html"
+        },
+        {
+          "source": "/p/**",
+          "destination": "/page.html"
         }
       ]
     },

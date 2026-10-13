@@ -38,6 +38,7 @@
         <a href="#info" data-t="nav.info">購買須知</a>
         <a href="#store" data-t="nav.store">門市</a>
         <a href="#faq" data-t="nav.faq">問題</a>
+        <a href="soon.html" id="nav-soon" data-t="nav.soon" hidden>即將發售</a>
       </nav>
       <div class="nav-actions">
         <button type="button" class="btn btn-line" id="acct-btn">登入 / 註冊</button>
@@ -72,6 +73,11 @@
 
     <div class="marquee" aria-hidden="true"><div class="track" id="marquee"></div></div>
 
+    <section id="promos" class="section wrap" hidden>
+      <div class="section-head reveal"><div><p class="caps kicker" data-t="promo.kicker">活動及優惠</p><h2 data-t="promo.title">最新活動</h2></div></div>
+      <div class="promo-grid" id="promo-grid"></div>
+    </section>
+
     <section id="shelf" class="section wrap">
       <div class="section-head reveal">
         <div>
@@ -83,6 +89,12 @@
       <p class="loading" id="loading" data-t="shelf.loading">正在載入價目…</p>
       <div class="grid" id="grid"></div>
       <p class="note" data-s="shelfNote"></p>
+    </section>
+
+    <section id="soon-teaser" class="section wrap" hidden>
+      <div class="section-head reveal"><div><p class="caps kicker" data-t="soon.kicker">新品預告</p><h2 data-t="soon.h1">即將發售</h2></div></div>
+      <div class="soon-grid" id="soon-grid"></div>
+      <p class="sec-cta"><a class="btn btn-line btn-lg" href="soon.html" data-t="soon.all">查看全部即將發售 →</a></p>
     </section>
 
     <section id="how" class="band">
@@ -254,6 +266,8 @@
   <script src="fb.js"></script>
   <script src="texts.js"></script>
   <script src="account.js"></script>
+  <script src="fx.js"></script>
+  <script src="soon-lib.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ rules_version = '2';
 //    Only the shop admin (signed in with the admin email) can read all orders or change a status. Nobody can delete.
 //  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
 //  - Purchases, sales and expenses (the shop-management pages): only the admin can read or write them.
+//  - Coming-soon products and extra pages: anyone can read the published ones; only the admin can change them.
 //  - Products, payment methods, website text and wording: anyone can READ them (that is what the website shows).
 //    Only the shop admin can add, change or delete them.
 service cloud.firestore {
@@ -50,7 +51,9 @@ service cloud.firestore {
     function validProduct() {
       let d = request.resource.data;
       let keys = ['group', 'name', 'price', 'tag', 'image', 'status', 'order'];
-      return d.keys().hasOnly(['group', 'name', 'price', 'tag', 'image', 'status', 'order', 'channels', 'eta', 'stock', 'aliases', 'addons']) && d.keys().hasAll(keys)
+      return d.keys().hasOnly(['group', 'name', 'price', 'tag', 'image', 'status', 'order', 'channels', 'eta', 'stock', 'aliases', 'addons', 'salePrice', 'saleEnds']) && d.keys().hasAll(keys)
+        && (!('salePrice' in d) || (d.salePrice is number && d.salePrice >= 0 && d.salePrice < 1000000))
+        && optStr(d, 'saleEnds', 10)
         && (!('stock' in d) || (d.stock is number && d.stock > -100000 && d.stock < 100000))
         && (!('aliases' in d) || (d.aliases is list && d.aliases.size() <= 30))
         && (!('addons' in d) || (d.addons is list && d.addons.size() <= 12))
@@ -61,7 +64,7 @@ service cloud.firestore {
         && d.price is number && d.price >= 0 && d.price < 1000000
         && d.tag is string && d.tag.size() <= 30
         && d.image is string && d.image.size() <= 400000
-        && d.status in ['ok', 'sold', 'store', 'hidden']
+        && d.status in ['ok', 'pending', 'sold', 'store', 'hidden']
         && d.order is number;
     }
 
@@ -180,6 +183,41 @@ service cloud.firestore {
     match /expenses/{id} {
       allow read, delete: if isAdmin();
       allow create, update: if isAdmin() && validExpense();
+    }
+
+    // ---- Content pages: products coming soon, and extra pages (discounts etc.). Visitors only see published ones. ----
+    function validUpcoming() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['title', 'group', 'image', 'releaseDate', 'releaseText', 'price', 'note', 'storeOnly', 'linkLabel', 'link', 'published', 'updatedAt'])
+        && d.keys().hasAll(['title', 'published'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.published is bool
+        && optStr(d, 'group', 60) && optStr(d, 'releaseDate', 10) && optStr(d, 'releaseText', 60)
+        && optStr(d, 'note', 600) && optStr(d, 'linkLabel', 30) && optStr(d, 'link', 300)
+        && (!('image' in d) || (d.image is string && d.image.size() <= 400000))
+        && (!('price' in d) || (d.price is number && d.price >= 0 && d.price < 1000000))
+        && (!('storeOnly' in d) || d.storeOnly is bool);
+    }
+    match /upcoming/{id} {
+      allow read: if isAdmin() || resource.data.published == true;
+      allow create, update: if isAdmin() && validUpcoming();
+      allow delete: if isAdmin();
+    }
+    function validPage(slug) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['slug', 'title', 'subtitle', 'banner', 'published', 'showInNav', 'navLabel', 'homeButton', 'homeLabel', 'order', 'blocks', 'updatedAt'])
+        && d.keys().hasAll(['slug', 'title', 'published', 'blocks'])
+        && d.slug == slug && d.slug.matches('[a-z0-9-]{1,40}')
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.published is bool
+        && optStr(d, 'subtitle', 300) && optStr(d, 'navLabel', 20) && optStr(d, 'homeLabel', 30)
+        && (!('banner' in d) || (d.banner is string && d.banner.size() <= 400000))
+        && d.blocks is list && d.blocks.size() <= 40;
+    }
+    match /pages/{slug} {
+      allow read: if isAdmin() || resource.data.published == true;
+      allow create, update: if isAdmin() && validPage(slug);
+      allow delete: if isAdmin();
     }
 
     // ---- Membership: every registered account has a member record; points are added by the admin page ----

@@ -2,7 +2,7 @@
 // bulk orders and costs (進貨及成本), rent and other costs (租金及開支), and the profit report (利潤).
 import {
   money, round2, todayStr, periodRange, num, calcPurchase, allLines, soldMap, matchLines, profitReport, parsePosText, saleKey,
-  normName, addDays, dn, buildItems, bestProduct, matchProducts, candidateLines, stockToRestore, addonsOf
+  normName, addDays, dn, effectivePrice, onSale, buildItems, bestProduct, matchProducts, candidateLines, stockToRestore, addonsOf
 } from "./shoplib.js";
 
 export function setupShop(ctx) {
@@ -57,7 +57,7 @@ export function setupShop(ctx) {
   const stockLabel = (p) => (typeof p.stock === "number" ? (p.stock > 0 ? "存庫 " + p.stock : "存庫 0") : "未追蹤存庫");
   // tiles: every website product, plus purchased goods that are not on the website
   function tiles() {
-    const ps = prods(), out = ps.map((p) => ({ kind: "p", key: "p:" + p.id, id: p.id, group: p.group || "", name: p.name, price: Number(p.price) || 0, stock: p.stock, hidden: p.status === "hidden", sold: p.status === "sold" }));
+    const ps = prods(), out = ps.map((p) => ({ kind: "p", key: "p:" + p.id, id: p.id, group: p.group || "", name: p.name, price: effectivePrice(p), was: onSale(p) ? Number(p.price) || 0 : 0, stock: p.stock, hidden: p.status === "hidden", sold: p.status === "sold", pending: p.status === "pending" }));
     const seen = new Set();
     lines().forEach((l) => {
       if (ps.some((p) => candidateLines(p, [l]).length)) return;
@@ -74,8 +74,8 @@ export function setupShop(ctx) {
     const q = $("#pos-search").value.trim().toLowerCase();
     const list = tiles().filter((e) => !q || (e.group + " " + e.name).toLowerCase().includes(q));
     $("#pos-products").innerHTML = list.length ? list.map((e) =>
-      '<button type="button" class="pos-tile' + (typeof e.stock === "number" && e.stock <= 0 ? " out" : "") + '" data-key="' + esc(e.key) + '"><span class="pt-group">' + esc(e.group) + (e.hidden ? " · 隱藏" : "") + "</span><b>" + esc(e.name) + '</b><span class="pt-price">' +
-      (e.price ? money(e.price) : "未設售價") + '</span><span class="pt-left">' + (typeof e.stock === "number" ? (e.stock > 0 ? "存庫 " + e.stock : "存庫 0") : "未追蹤存庫") + "</span></button>").join("")
+      '<button type="button" class="pos-tile' + (typeof e.stock === "number" && e.stock <= 0 ? " out" : "") + '" data-key="' + esc(e.key) + '"><span class="pt-group">' + esc(e.group) + (e.hidden ? " · 隱藏" : "") + (e.pending ? " · 未到貨" : "") + "</span><b>" + esc(e.name) + '</b><span class="pt-price">' +
+      (e.was ? "<s>" + money(e.was) + "</s> " : "") + (e.price ? money(e.price) : "未設售價") + '</span><span class="pt-left">' + (typeof e.stock === "number" ? (e.stock > 0 ? "存庫 " + e.stock : "存庫 0") : "未追蹤存庫") + "</span></button>").join("")
       : '<p class="empty">未有商品。請先在「商品」分頁新增商品，或用「其他項目」手動輸入。</p>';
     renderCart();
     const today = todayStr();

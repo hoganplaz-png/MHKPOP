@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MHKPOP</title>
+  <link rel="icon" href="/assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/page.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><img src="/assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <div class="nav-actions"><a class="btn btn-line" href="/" data-t="pay.back">返回網站</a><a class="btn btn-solid" href="/#order" data-t="nav.order">落單表格</a></div>
+    </div>
+  </header>
+
+  <main class="wrap cpage">
+    <p class="loading" id="pg-loading" data-t="shelf.loading">正在載入…</p>
+    <section id="pg-missing" hidden>
+      <h1 data-t="pg.missing.t">找不到這個頁面</h1>
+      <p class="lead" data-t="pg.missing.d">這個頁面可能已經結束或移除了。</p>
+      <p><a class="btn btn-solid btn-lg" href="/" data-t="pg.missing.btn">返回首頁</a></p>
+    </section>
+    <article id="pg-body" hidden>
+      <div class="cp-banner" id="pg-banner" hidden></div>
+      <header class="cp-head"><h1 id="pg-h1"></h1><p class="lead" id="pg-sub" hidden></p></header>
+      <div id="pg-blocks"></div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="/terms.html" data-t="legal.terms">服務條款</a><a href="/privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
+  <script src="/settings.js"></script>
+  <script src="/firebase-config.js"></script>
+  <script src="/fb.js"></script>
+  <script src="/texts.js"></script>
+  <script src="/fx.js"></script>
+  <script src="/page.js"></script>
+</body>
+</html>

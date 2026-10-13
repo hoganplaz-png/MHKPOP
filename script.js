@@ -42,8 +42,10 @@
       var fs = c.fs;
       return Promise.all([
         fs.getDoc(fs.doc(c.db, "settings", "site")).then(function (d) { return d.exists() ? d.data() : null; }).catch(function () { return null; }),
-        fs.getDocs(fs.query(fs.collection(c.db, "products"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return null; })
-      ]).then(function (r) { return { site: r[0], products: r[1] }; });
+        fs.getDocs(fs.query(fs.collection(c.db, "products"), fs.orderBy("order"))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return null; }),
+        fs.getDocs(fs.query(fs.collection(c.db, "upcoming"), fs.where("published", "==", true))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; }),
+        fs.getDocs(fs.query(fs.collection(c.db, "pages"), fs.where("published", "==", true))).then(function (q) { return q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); }).catch(function () { return []; })
+      ]).then(function (r) { return { site: r[0], products: r[1], upcoming: r[2], pages: r[3] }; });
     }).catch(function () { return null; });
   }
 
@@ -98,6 +100,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   function kindOf(p) {
     var s = (p.status || "").toLowerCase();
     if (s === "hidden" || s.indexOf("隱藏") >= 0) return "hidden";
+    if (s === "pending") return "pending";
     if (s.indexOf("售罄") >= 0 || s.indexOf("sold") >= 0) return "sold";
     if (s.indexOf("門市") >= 0 || s.indexOf("store") >= 0) return "store";
     if (stockOut(p)) return "sold";
@@ -105,6 +108,19 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   }
   // a product with a stock number sells out by itself at 0 (pre-order products keep selling)
   function tracked(p) { return typeof p.stock === "number"; }
+  // sale price (特價) until its last day; products marked 未到貨 can still be pre-ordered when they have the 訂購 option
+  function today() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function priceOf(p) {
+    var sp = p.salePrice;
+    if (sp !== undefined && sp !== null && sp !== "" && isFinite(Number(sp)) && (!p.saleEnds || today() <= p.saleEnds)) return Number(sp);
+    return Number(p.price) || 0;
+  }
+  function priceHtml(p) {
+    var n = priceOf(p), o = Number(p.price) || 0;
+    return n < o ? '<s class="was">' + money(o) + "</s> " + money(n) : money(n);
+  }
+  function pendingOrderable(p) { return kindOf(p) === "pending" && chOf(p).indexOf("preorder") >= 0; }
+  function modeFor(i) { return kindOf(products[i]) === "pending" ? "preorder" : (modes[i] || defMode(products[i])); }
   function stockOut(p) { return tracked(p) && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true); }
   function byId(id) { return allProducts.filter(function (p) { return p.id === id; })[0]; }
   function addonsFor(p) {
@@ -156,16 +172,17 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
       var sleeve = p.image
         ? '<img src="' + esc(imgSrc(p.image)) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">'
         : '<div class="sleeve-ph"><span class="caps">MHKPOP</span><b>' + esc(p.group) + "</b></div>";
-      var tag = k === "sold" ? T("shelf.soldTag") : p.tag;
+      var tag = k === "sold" ? T("shelf.soldTag") : k === "pending" ? T("shelf.pendingTag") : priceOf(p) < (Number(p.price) || 0) ? T("shelf.saleTag") : p.tag;
       var foot = k === "sold" ? '<span class="state">' + esc(T("shelf.soldFoot")) + "</span>"
+        : k === "pending" && !pendingOrderable(p) ? '<span class="state">' + esc(T("shelf.pendingFoot")) + "</span>"
         : k === "store" ? '<span class="state">' + esc(T("shelf.storeFoot")) + "</span>"
         : '<a href="#order">' + esc(T("shelf.orderLink")) + "</a>";
-      return '<article class="card reveal' + (k === "sold" ? " is-sold" : "") + '">' +
+      return '<article class="card reveal' + (k === "sold" ? " is-sold" : "") + (k === "pending" ? " is-pending" : "") + '">' +
         '<div class="stage"><div class="cd"></div>' +
         '<div class="sleeve" style="background:' + tone[0] + ";color:" + tone[1] + '">' + sleeve + "</div>" +
         (tag ? '<span class="tag">' + esc(tag) + "</span>" : "") + "</div>" +
         '<div class="card-body"><div class="card-group caps">' + esc(p.group) + '</div><div class="card-name">' + esc(p.name) + "</div>" + chanBadges(p) + "</div>" +
-        '<div class="card-foot"><span class="price">' + money(p.price) + "</span>" + foot + "</div></article>";
+        '<div class="card-foot"><span class="price">' + priceHtml(p) + "</span>" + foot + "</div></article>";
     }).join("");
   }
 
@@ -182,20 +199,20 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
 
   function renderItems() {
     $("#items").innerHTML = products.map(function (p, i) {
-      var k = kindOf(p), off = k !== "ok", c = chOf(p);
+      var k = kindOf(p), off = k !== "ok" && !pendingOrderable(p), c = chOf(p);
       var control = off
-        ? '<span class="item-state">' + esc(k === "sold" ? T("shelf.soldFoot") : T("shelf.storeFoot")) + "</span>"
+        ? '<span class="item-state">' + esc(k === "sold" ? T("shelf.soldFoot") : k === "pending" ? T("shelf.pendingFoot") : T("shelf.storeFoot")) + "</span>"
         : '<div class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="' + esc(T("item.dec", { name: p.name })) + '">−</button>' +
           '<output id="q' + i + '" aria-live="polite">0</output>' +
           '<button type="button" data-i="' + i + '" data-d="1" aria-label="' + esc(T("item.inc", { name: p.name })) + '">+</button></div>';
-      var modeSel = !off && c.indexOf("stock") >= 0 && c.indexOf("preorder") >= 0
+      var modeSel = !off && k !== "pending" && c.indexOf("stock") >= 0 && c.indexOf("preorder") >= 0
         ? '<select class="mode" data-m="' + i + '" aria-label="' + esc(T("item.mode", { name: p.name })) + '">' +
           '<option value="stock">' + esc(T("item.modeStock")) + '</option><option value="preorder">' + esc(T("item.modePreorder")) + "</option></select>" : "";
       var line = c.map(function (x) { return T("chan." + x); }).join(" · ");
       if (c.indexOf("preorder") >= 0 && p.eta) line += " · " + T("chan.eta", { eta: p.eta });
       return '<div class="item' + (off ? " is-off" : "") + '"><div class="item-main"><span class="caps">' + esc(p.group) + "</span><small>" + esc(p.name) + "</small>" +
         '<small class="chan-line">' + esc(line) + "</small>" + modeSel + "</div>" +
-        '<div class="item-price">' + money(p.price) + "</div>" + control + '<div class="addons" id="ad' + i + '"></div></div>';
+        '<div class="item-price">' + priceHtml(p) + "</div>" + control + '<div class="addons" id="ad' + i + '"></div></div>';
     }).join("");
     qty = {}; modes = {}; addonQty = {}; updateTotal(); syncDelivery();
   }
@@ -237,7 +254,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
     }
     var b = e.target.closest("button[data-i]"); if (!b) return;
     var i = +b.dataset.i, dd = +b.dataset.d;
-    if (dd > 0 && !canAdd(products[i], modes[i] || defMode(products[i]))) return showError(T("err.stock", { name: products[i].name, n: Math.max(products[i].stock, 0) }));
+    if (dd > 0 && !canAdd(products[i], modeFor(i))) return showError(T("err.stock", { name: products[i].name, n: Math.max(products[i].stock, 0) }));
     qty[i] = Math.max(0, (qty[i] || 0) + dd);
     $("#q" + i).textContent = qty[i];
     trimAddons(i); renderAddons(i);
@@ -252,7 +269,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
     var out = [];
     products.forEach(function (p, i) {
       var q = qty[i] || 0; if (q <= 0) return;
-      out.push({ p: p, q: q, mode: modes[i] || defMode(p), price: p.price });
+      out.push({ p: p, q: q, mode: modeFor(i), price: priceOf(p) });
       addonsFor(p).forEach(function (a) {
         var n = addonQty[i + "|" + a.t.id] || 0;
         if (n > 0) out.push({ p: a.t, q: n, mode: defMode(a.t), price: a.price, addon: true, addonOf: p.name });
@@ -391,6 +408,26 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
   window.MHA.onChange(syncOrderForm);
   syncOrderForm();
 
+  // coming-soon teaser, extra pages (活動頁面) in the menu and as cards on the home page
+  function renderExtras(remote) {
+    var up = remote && remote.upcoming && window.MHSoon ? window.MHSoon.sort(remote.upcoming) : [];
+    $("#nav-soon").hidden = !up.length; $("#soon-teaser").hidden = !up.length;
+    if (up.length) { $("#soon-grid").innerHTML = up.slice(0, 3).map(window.MHSoon.card).join(""); window.MHSoon.clocks($("#soon-grid")); }
+    var pg = remote && remote.pages ? remote.pages.slice().sort(function (a, b) { return (Number(a.order) || 0) - (Number(b.order) || 0); }) : [];
+    $$(".nav-extra").forEach(function (a) { a.parentNode.removeChild(a); });
+    var nav = $(".nav-links"), after = $("#nav-soon");
+    pg.filter(function (p) { return p.showInNav; }).forEach(function (p) {
+      var a = document.createElement("a"); a.className = "nav-extra"; a.href = "/p/" + p.id; a.textContent = p.navLabel || p.title;
+      nav.insertBefore(a, after.nextSibling);
+    });
+    var promos = pg.filter(function (p) { return p.homeButton; });
+    $("#promos").hidden = !promos.length;
+    $("#promo-grid").innerHTML = promos.map(function (p) {
+      var im = /^data:image\/(jpeg|png|webp);base64,/.test(p.banner || "") ? p.banner : "";
+      return '<a class="promo-card reveal" href="/p/' + esc(p.id) + '"><div class="promo-img">' + (im ? '<img src="' + esc(im) + '" alt="" loading="lazy">' : '<div class="soon-ph">' + esc(p.title) + "</div>") + "</div>" +
+        '<div class="soon-body"><h3>' + esc(p.title) + "</h3>" + (p.subtitle ? '<p class="soon-note">' + esc(p.subtitle) + "</p>" : "") + '<span class="promo-more">' + esc(p.homeLabel || T("promo.more")) + "</span></div></a>";
+    }).join("");
+  }
   function emptyShelf() { return '<p class="loading" id="empty-shelf">' + esc(T("shelf.empty")) + "</p>"; }
 
   renderDelivery();
@@ -402,7 +439,7 @@ var addonQty = {};   // "mainIndex|addonProductId" -> quantity
       if (remote.site.ordersOpen === false) S.ordersOpen = false;
       bindSettings();
     }
-    syncOrderForm(); renderDelivery(); window.MHA.refresh();
+    syncOrderForm(); renderDelivery(); window.MHA.refresh(); renderExtras(remote);
     if (remote && remote.products && remote.products.length) return remote.products;
     return loadProducts();
   }).then(function (list) {

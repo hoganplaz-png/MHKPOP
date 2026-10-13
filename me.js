@@ -52,6 +52,7 @@
     $("#mc-name").textContent = (member && member.name) || user.displayName || user.email;
     $("#mc-email").textContent = user.email || "";
     $("#mc-tier").textContent = info.tier.name; $("#mc-points").textContent = points; $("#mc-spent").textContent = money(spent);
+    if (window.FX && window.FX.countUp && !window.FX.reduce) { window.FX.countUp($("#mc-points"), points); window.FX.countUp($("#mc-spent"), spent, money); }
     if (info.next) {
       $("#mc-next").textContent = T("me.next", { amount: money(info.next.min - spent), tier: info.next.name });
       var from = info.tier.min, pct = Math.max(0, Math.min(100, ((spent - from) / (info.next.min - from)) * 100));

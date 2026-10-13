@@ -43,6 +43,8 @@
         <button type="button" role="tab" class="tab" id="t-payments" data-tab="payments" aria-selected="false" aria-controls="p-payments">付款方式</button>
         <button type="button" role="tab" class="tab" id="t-site" data-tab="site" aria-selected="false" aria-controls="p-site">網站內容</button>
         <button type="button" role="tab" class="tab" id="t-texts" data-tab="texts" aria-selected="false" aria-controls="p-texts">全部文字</button>
+        <button type="button" role="tab" class="tab" id="t-soon" data-tab="soon" aria-selected="false" aria-controls="p-soon">即將發售</button>
+        <button type="button" role="tab" class="tab" id="t-pages" data-tab="pages" aria-selected="false" aria-controls="p-pages">活動頁面</button>
       </div>
       <div class="tabs tabs-shop" role="tablist" aria-label="店舖管理">
         <span class="tabs-label">店舖管理</span>
@@ -269,6 +271,26 @@
         <div id="mb-list"></div>
       </section>
 
+      <!-- 即將發售 -->
+      <section id="p-soon" role="tabpanel" aria-labelledby="t-soon" hidden>
+        <div class="tools">
+          <p class="hint">即將發售的商品會顯示在網站的「即將發售」頁面（<b>/soon</b>）和首頁預告，有倒數計時。到了發售日會自動顯示「已發售」。商品正式開賣後，記得到「商品」新增，再把這裡的預告關閉或刪除。</p>
+          <div class="tools-right"><a class="btn btn-line" href="soon.html" target="_blank" rel="noopener">查看頁面</a><button type="button" class="btn btn-solid" id="up-add">新增即將發售商品</button></div>
+        </div>
+        <p class="empty" id="up-empty" hidden>未有即將發售商品。按「新增即將發售商品」。</p>
+        <div id="up-list"></div>
+      </section>
+
+      <!-- 活動頁面 -->
+      <section id="p-pages" role="tabpanel" aria-labelledby="t-pages" hidden>
+        <div class="tools">
+          <p class="hint">在這裡可以建立任意數量的新版面（例如折扣、節日活動）。每個版面有自己的網址 <b>/p/名稱</b>，可以放標題、文字、圖片、商品、倒數計時、優惠碼和按鈕，按鈕可以連去其他版面。可以顯示在選單和首頁，客人按一下就會跳到這個版面。</p>
+          <div class="tools-right"><button type="button" class="btn btn-solid" id="pg-add">新增版面</button></div>
+        </div>
+        <p class="empty" id="pg-empty" hidden>未有活動頁面。按「新增版面」。</p>
+        <div id="pg-list"></div>
+      </section>
+
       <!-- 全部文字 -->
       <section id="p-texts" role="tabpanel" aria-labelledby="t-texts" hidden>
         <div class="tools">
@@ -298,9 +320,15 @@
         <div><label for="p-price">價錢（港幣）</label><input id="p-price" class="field" type="number" inputmode="decimal" min="0" step="1" required></div>
         <div><label for="p-tag">標籤（選填，例如 期間限定）</label><input id="p-tag" class="field" type="text" maxlength="30"></div>
       </div>
+      <div class="grid2">
+        <div><label for="p-sale">特價（HK$，選填）</label><input id="p-sale" class="field" type="number" min="0" step="any" inputmode="decimal" placeholder="留空 = 不特價">
+          <p class="hint">有特價時，網站和收銀都用特價，原價會畫上刪除線。</p></div>
+        <div><label for="p-saleends">特價最後一日（選填）</label><input id="p-saleends" class="field" type="date"><p class="hint">過了這一日自動回復原價；留空 = 一直特價。</p></div>
+      </div>
       <label for="p-status">狀態</label>
       <select id="p-status" class="field">
         <option value="ok">有貨</option>
+        <option value="pending">未到貨</option>
         <option value="sold">售罄</option>
         <option value="store">只限門市</option>
         <option value="hidden">隱藏（不在網站顯示）</option>
@@ -496,6 +524,88 @@
       <h3 class="sub">積分紀錄</h3>
       <div id="m-logs"></div>
       <div class="dlg-actions"><button type="submit" class="btn btn-solid">儲存</button><button type="button" class="btn btn-line" id="m-cancel">關閉</button></div>
+    </form>
+  </dialog>
+
+  <!-- 即將發售 -->
+  <dialog id="updlg" aria-labelledby="updlg-title">
+    <form id="upform" method="dialog">
+      <h2 id="updlg-title">新增即將發售商品</h2>
+      <div class="grid2">
+        <div><label for="u-group">組合 / 歌手</label><input id="u-group" class="field" type="text" maxlength="60"></div>
+        <div><label for="u-title">專輯／商品名稱</label><input id="u-title" class="field" type="text" maxlength="120" required></div>
+      </div>
+      <div class="grid2">
+        <div><label for="u-date">發售日期（有的話會倒數計時）</label><input id="u-date" class="field" type="date"></div>
+        <div><label for="u-text">或寫發售時間（選填）</label><input id="u-text" class="field" type="text" maxlength="60" placeholder="例如 10 月下旬、待定"></div>
+      </div>
+      <div class="grid2">
+        <div><label for="u-price">預計售價（HK$，選填）</label><input id="u-price" class="field" type="number" min="0" step="any" inputmode="decimal"></div>
+        <div><label for="u-photo">相片（選填，會自動縮細）</label><div class="photo-row"><div class="preview" id="u-preview" aria-hidden="true"></div><div class="photo-actions"><input id="u-photo" type="file" accept="image/*"><button type="button" class="btn btn-line" id="u-photo-remove" hidden>移除相片</button></div></div></div>
+      </div>
+      <div class="toggle-row" style="margin-top:12px">
+        <input id="u-store" type="checkbox">
+        <label for="u-store"><b>只限格仔舖現貨</b><small>發售後只在格仔舖門市發售，不寄順豐、不接受網上訂購。網站會顯示「只限格仔舖現貨」標籤。</small></label>
+      </div>
+      <label for="u-note">簡介（選填）</label>
+      <textarea id="u-note" class="field" rows="3" maxlength="600"></textarea>
+      <div class="grid2">
+        <div><label for="u-linklabel">按鈕文字（選填，例如 查詢）</label><input id="u-linklabel" class="field" type="text" maxlength="30"></div>
+        <div><label for="u-link">按鈕連去（選填）</label><input id="u-link" class="field" type="text" maxlength="300" placeholder="https://… 或 /p/活動名稱 或 #order"></div>
+      </div>
+      <div class="toggle-row" style="margin-top:12px">
+        <input id="u-pub" type="checkbox" checked>
+        <label for="u-pub"><b>在網站顯示</b></label>
+      </div>
+      <p class="error" id="u-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="u-save">儲存</button>
+        <button type="button" class="btn btn-line" id="u-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="u-delete" hidden>刪除</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 活動頁面 -->
+  <dialog id="pgdlg" aria-labelledby="pgdlg-title" class="wide-dlg">
+    <form id="pgform" method="dialog">
+      <h2 id="pgdlg-title">新增版面</h2>
+      <div class="grid2">
+        <div><label for="pg-slug">網址名稱（英文細楷、數字、-）</label><input id="pg-slug" class="field" type="text" maxlength="40" pattern="[a-z0-9\-]{1,40}" placeholder="例如 summer-sale"><p class="hint" id="pg-url"></p></div>
+        <div><label for="pg-title">版面標題</label><input id="pg-title" class="field" type="text" maxlength="120" required></div>
+      </div>
+      <label for="pg-sub">副標題（選填）</label>
+      <input id="pg-sub" class="field" type="text" maxlength="300">
+      <label for="pg-photo">橫幅圖片（選填，會自動縮細）</label>
+      <div class="photo-row"><div class="preview" id="pg-preview" aria-hidden="true"></div><div class="photo-actions"><input id="pg-photo" type="file" accept="image/*"><button type="button" class="btn btn-line" id="pg-photo-remove" hidden>移除圖片</button></div></div>
+      <div class="toggle-row" style="margin-top:12px"><input id="pg-pub" type="checkbox" checked><label for="pg-pub"><b>發佈（客人看得到）</b><small>不剔選＝草稿，只有你登入後看得到。</small></label></div>
+      <div class="grid2">
+        <div class="toggle-row" style="margin-top:12px"><input id="pg-nav" type="checkbox"><label for="pg-nav"><b>顯示在頂部選單</b></label></div>
+        <div><label for="pg-navlabel">選單文字（選填）</label><input id="pg-navlabel" class="field" type="text" maxlength="20" placeholder="預設用版面標題"></div>
+      </div>
+      <div class="grid2">
+        <div class="toggle-row" style="margin-top:12px"><input id="pg-home" type="checkbox"><label for="pg-home"><b>在首頁顯示按鈕</b><small>首頁會出現一張活動卡，客人按一下就跳到這個版面。</small></label></div>
+        <div><label for="pg-homelabel">首頁按鈕文字（選填）</label><input id="pg-homelabel" class="field" type="text" maxlength="30" placeholder="例如 查看優惠 →"></div>
+      </div>
+      <h3 class="sub">版面內容</h3>
+      <div id="pg-blocks"></div>
+      <div class="add-blocks" role="group" aria-label="新增內容">
+        <button type="button" class="btn btn-line" data-add="heading">＋ 大標題</button>
+        <button type="button" class="btn btn-line" data-add="text">＋ 文字</button>
+        <button type="button" class="btn btn-line" data-add="image">＋ 圖片</button>
+        <button type="button" class="btn btn-line" data-add="products">＋ 商品</button>
+        <button type="button" class="btn btn-line" data-add="button">＋ 按鈕</button>
+        <button type="button" class="btn btn-line" data-add="countdown">＋ 倒數計時</button>
+        <button type="button" class="btn btn-line" data-add="code">＋ 優惠碼</button>
+        <button type="button" class="btn btn-line" data-add="divider">＋ 分隔線</button>
+      </div>
+      <p class="hint">商品的特價在「商品」分頁設定（特價和最後一日）。版面上的商品會自動顯示現時價錢和特價。</p>
+      <p class="error" id="pg-error" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-solid" id="pg-save">儲存</button>
+        <button type="button" class="btn btn-line" id="pg-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="pg-delete" hidden>刪除版面</button>
+      </div>
     </form>
   </dialog>
 

@@ -6,11 +6,12 @@ import {
 
 import { setupShop } from "./shop.js";
 import { setupMembers } from "./members.js";
-import { PROGRESS, progressKey } from "./shoplib.js";
+import { setupContent } from "./content.js";
+import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
-const PRODUCT_STATUS = { ok: "有貨", sold: "售罄", store: "只限門市（舊設定）", hidden: "隱藏" };
+const PRODUCT_STATUS = { ok: "有貨", pending: "未到貨", sold: "售罄", store: "只限門市（舊設定）", hidden: "隱藏" };
 const CHANNELS = { stock: "格仔舖現貨", preorder: "訂購", sf: "可寄順豐" };
 const chOf = (p) => { const c = Array.isArray(p.channels) ? p.channels.filter((x) => CHANNELS[x]) : []; return c.length ? c : ["stock", "sf"]; };
 const money = (n) => "HK$" + n;
@@ -36,6 +37,11 @@ if (!cfg) {
     db, $, esc, notice,
     fb: { collection, doc, onSnapshot, query, orderBy, setDoc, updateDoc, writeBatch, serverTimestamp, increment }
   });
+  const content = setupContent({
+    db, $, esc, notice, shrink: (f, side) => shrink(f, side),
+    fb: { collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, deleteField },
+    getWebProducts: () => products
+  });
   const shop = setupShop({
     db, $, esc, notice,
     fb: { collection, doc, onSnapshot, query, orderBy, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion, deleteField },
@@ -50,7 +56,7 @@ if (!cfg) {
   };
 
   onAuthStateChanged(auth, (user) => {
-    stopAll(); shop.stop(); members.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
+    stopAll(); shop.stop(); members.stop(); content.stop(); orders = []; products = []; payments = []; proofs = []; site = null; siteDirty = false;
     if (!user) {
       $("#login").hidden = false; $("#app").hidden = true; $("#who").hidden = true;
       return;
@@ -58,7 +64,7 @@ if (!cfg) {
     $("#login").hidden = true; $("#app").hidden = false; $("#who").hidden = false;
     $("#who-email").textContent = user.email;
     notice("");
-    shop.start(); members.start();
+    shop.start(); members.start(); content.start();
     unsubs.push(onSnapshot(query(collection(db, "orders"), orderBy("createdAt", "desc")),
       (snap) => { orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderOrders(); shop.ordersChanged(); }, denied));
     unsubs.push(onSnapshot(query(collection(db, "products"), orderBy("order")),
@@ -204,14 +210,16 @@ if (!cfg) {
       const thumb = p.image && /^data:image\//.test(p.image)
         ? '<img src="' + esc(p.image) + '" alt="">' : '<span>' + esc((p.group || "?").slice(0, 2)) + "</span>";
       const opts = Object.keys(PRODUCT_STATUS).map((k) => '<option value="' + k + '"' + (p.status === k ? " selected" : "") + ">" + PRODUCT_STATUS[k] + "</option>").join("");
-      return '<article class="prod' + (p.status === "hidden" ? " is-hidden" : "") + '" data-id="' + p.id + '">' +
+      const sale = effectivePrice(p) !== (Number(p.price) || 0);
+      return '<article class="prod' + (p.status === "hidden" ? " is-hidden" : "") + (p.status === "pending" ? " is-pending" : "") + '" data-id="' + p.id + '">' +
         '<div class="thumb">' + thumb + "</div>" +
         '<div class="p-main"><div class="p-group">' + esc(p.group) + "</div><div class=\"p-name\">" + esc(p.name) + "</div>" +
-        '<div class="p-meta">' + money(p.price) + (p.addons && p.addons.length ? " · 加購 " + p.addons.length + " 項" : "") + (p.tag ? " · " + esc(p.tag) : "") + (p.eta && chOf(p).includes("preorder") ? " · 預計到貨：" + esc(p.eta) : "") + "</div>" +
+        '<div class="p-meta">' + (sale ? '<s>' + money(p.price) + "</s> <b>" + money(effectivePrice(p)) + "</b> 特價" : money(p.price)) + (p.status === "pending" ? ' · <b class="neg">未到貨</b>' : "") + (p.addons && p.addons.length ? " · 加購 " + p.addons.length + " 項" : "") + (p.tag ? " · " + esc(p.tag) : "") + (p.eta && chOf(p).includes("preorder") ? " · 預計到貨：" + esc(p.eta) : "") + "</div>" +
         '<div class="badges">' + chOf(p).map((c) => '<span class="badge">' + CHANNELS[c] + "</span>").join("") + "</div></div>" +
         '<div class="p-actions">' +
         '<label class="mini stk' + (typeof p.stock === "number" && p.stock <= 0 ? " neg" : "") + '">存庫<input class="inl" type="number" step="1" data-act="stock" placeholder="不追蹤" value="' + (typeof p.stock === "number" ? p.stock : "") + '"></label>' +
         '<label class="sr" for="ps-' + p.id + '">狀態</label><select class="o-status" id="ps-' + p.id + '" data-act="status">' + opts + "</select>" +
+        '<button type="button" class="btn ' + (p.status === "pending" ? "btn-solid" : "btn-line") + '" data-act="pending">' + (p.status === "pending" ? "已到貨 ✓" : "標記未到貨") + "</button>" +
         '<button type="button" class="icon" data-act="up" aria-label="向上移" ' + (i === 0 ? "disabled" : "") + ">▲</button>" +
         '<button type="button" class="icon" data-act="down" aria-label="向下移" ' + (i === products.length - 1 ? "disabled" : "") + ">▼</button>" +
         '<button type="button" class="btn btn-line" data-act="edit">編輯</button></div></article>';
@@ -222,6 +230,10 @@ if (!cfg) {
     const b = e.target.closest("[data-act]"); const card = e.target.closest(".prod"); if (!b || !card) return;
     const idx = products.findIndex((p) => p.id === card.dataset.id); if (idx < 0) return;
     if (b.dataset.act === "edit") return openProduct(products[idx]);
+    if (b.dataset.act === "pending") {
+      const next = products[idx].status === "pending" ? "ok" : "pending";
+      return updateDoc(doc(db, "products", products[idx].id), { status: next }).catch(() => notice("儲存失敗，請再試。"));
+    }
     if (b.dataset.act === "up" || b.dataset.act === "down") {
       const j = b.dataset.act === "up" ? idx - 1 : idx + 1;
       if (j < 0 || j >= products.length) return;
@@ -267,6 +279,7 @@ if (!cfg) {
     $("#p-group").value = p ? p.group : ""; $("#p-name").value = p ? p.name : "";
     $("#p-price").value = p ? p.price : ""; $("#p-tag").value = p ? p.tag || "" : "";
     $("#p-status").value = p ? p.status || "ok" : "ok";
+    $("#p-sale").value = p && p.salePrice != null && p.salePrice !== "" ? p.salePrice : ""; $("#p-saleends").value = p ? p.saleEnds || "" : "";
     const ch = p ? chOf(p) : ["stock", "sf"];
     Object.keys(CHANNELS).forEach((k) => { $("#p-ch-" + k).checked = ch.includes(k); });
     $("#p-eta").value = p ? p.eta || "" : "";
@@ -324,6 +337,9 @@ if (!cfg) {
     const addons = [...document.querySelectorAll("#p-addons .addon-row")].map((r) => ({ id: r.querySelector(".ad-prod").value, price: Number(r.querySelector(".ad-price").value) }))
       .filter((a) => a.id && Number.isFinite(a.price) && a.price >= 0);
     const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value, channels, eta: $("#p-eta").value.trim(), aliases, addons };
+    const saleRaw = $("#p-sale").value.trim();
+    if (saleRaw !== "") { const sp = Number(saleRaw); if (!Number.isFinite(sp) || sp < 0) { err.textContent = "特價請填寫正確的數字。"; err.hidden = false; btn.disabled = false; btn.textContent = "儲存"; return; } data.salePrice = sp; data.saleEnds = $("#p-saleends").value; }
+    else if (editing && editing.salePrice != null) { data.salePrice = deleteField(); data.saleEnds = deleteField(); }
     if (stockRaw !== "") data.stock = Math.round(Number(stockRaw)); else if (editing && typeof editing.stock === "number") data.stock = deleteField();
     const job = editing
       ? updateDoc(doc(db, "products", editing.id), data)
@@ -445,12 +461,12 @@ if (!cfg) {
     ["nav", "頂部及選單"], ["hero", "首頁主視覺"], ["shelf", "價目區"], ["chan", "供應方式標籤"], ["how", "購買流程"], ["info", "購買須知"],
     ["ord", "落單區"], ["gate", "登入提示"], ["form", "落單表格"], ["item", "貨品選擇"], ["delivery", "交收方式"], ["err", "落單提示訊息"],
     ["review", "核對訂單視窗"], ["acct", "帳戶（登入／註冊）"], ["store", "門市"], ["faq", "常見問題"], ["foot", "頁尾"], ["legal", "條款連結"],
-    ["pay", "付款頁面"], ["me", "會員及訂單頁面"], ["prog", "訂單進度名稱"], ["addon", "加購"], ["terms", "服務條款頁面"], ["priv", "私隱政策頁面"], ["idx", "瀏覽器標題"]
+    ["promo", "活動及優惠區"], ["soon", "即將發售"], ["pg", "活動頁面（共用文字）"], ["pay", "付款頁面"], ["me", "會員及訂單頁面"], ["prog", "訂單進度名稱"], ["addon", "加購"], ["terms", "服務條款頁面"], ["priv", "私隱政策頁面"], ["idx", "瀏覽器標題"]
   ];
   let catalog = [], textMap = {}, edits = {}, textsDirty = false, catalogReady = false;
 
   async function loadCatalog() {
-    const pages = ["index.html", "pay.html", "me.html", "terms.html", "privacy.html"];
+    const pages = ["index.html", "soon.html", "page.html", "pay.html", "me.html", "terms.html", "privacy.html"];
     const items = new Map();
     for (const file of pages) {
       try {

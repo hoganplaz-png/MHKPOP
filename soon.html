@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-t="soon.title">即將發售 · MHKPOP</title>
+  <meta name="description" content="MHKPOP 即將發售的韓國 K-POP 專輯和商品，有發售日倒數。">
+  <link rel="canonical" href="https://mhkpop.web.app/soon">
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="legal.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><img src="assets/logo.png" alt="MH KPOP SELL 標誌" width="46" height="45"><span class="caps">MHKPOP</span></a>
+      <div class="nav-actions"><a class="btn btn-line" href="/" data-t="pay.back">返回網站</a><a class="btn btn-solid" href="/#order" data-t="nav.order">落單表格</a></div>
+    </div>
+  </header>
+
+  <main class="wrap legal soon-page">
+    <p class="caps kicker" data-t="soon.kicker">新品預告</p>
+    <h1 data-t="soon.h1">即將發售</h1>
+    <p class="lead" data-t="soon.lead">以下是即將發售的專輯和商品。發售日倒數完結後，我們會在價目表上架，到時可以用落單表格購買。</p>
+    <p class="loading" id="soon-loading" data-t="shelf.loading">正在載入…</p>
+    <div class="soon-grid" id="soon-grid"></div>
+    <p class="empty" id="soon-empty" hidden data-t="soon.empty">暫時未有即將發售的商品，請留意我們的 Instagram。</p>
+    <p class="sec-cta"><a class="btn btn-solid btn-lg" href="/#shelf" data-t="soon.shelf">睇現有價目</a></p>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <span data-t="foot.tag">韓國 K-POP 專輯專賣店 · 將軍澳</span>
+      <span class="foot-links"><a href="terms.html" data-t="legal.terms">服務條款</a><a href="privacy.html" data-t="legal.privacy">私隱政策</a></span>
+    </div>
+  </footer>
+
+  <script src="settings.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="fb.js"></script>
+  <script src="texts.js"></script>
+  <script src="fx.js"></script>
+  <script src="soon-lib.js"></script>
+  <script src="soon.js"></script>
+</body>
+</html>
