@@ -93,7 +93,7 @@ The deploy creates the web app settings (`firebase-config.js`) by itself.
 - `account.js`: customer sign-up and sign-in. `fb.js`: loads Firebase. `texts.js`: the editable-wording system
 - `pay.html`, `pay.js`, `pay.css`: the payment page
 - `terms.html`, `privacy.html`, `legal.css`, `legal.js`: Terms of Service and Privacy Policy
-- `content.js`: the 即將發售 and 活動頁面 tabs. `soon.html`, `soon.js`, `soon-lib.js`: the coming-soon page. `page.html`, `page.js`, `page.css`: extra pages (`/p/<name>`). `fx.js`: animations (scroll reveals, progress bar, parallax, card spotlight, magnetic buttons, ripples, countdowns, smooth page changes; all off for visitors who prefer reduced motion)
+- `proofcheck.js`: the automatic payment screenshot check (tests: `node tests/proofcheck.test.mjs`). `vendor/tesseract/`: the text reader it uses
 - `admin-content.js`: the 即將發售 and 活動頁面 tabs. `soon.html`, `soon.js`, `soon-lib.js`: the coming-soon page. `page.html`, `page.js`, `page.css`: extra pages (`/p/<name>`). `fx.js`: animations (scroll reveals, progress bar, parallax, card spotlight, magnetic buttons, ripples, countdowns, smooth page changes; all off for visitors who prefer reduced motion)
 - `members.js`: the 會員 tab. `me.html`, `me.js`, `me.css`: the customer's membership and order page
 - `shop.js`, `shoplib.js`: the shop-management pages and their calculations (costs, stock, profit, POS-text reader)
