@@ -3,7 +3,7 @@ rules_version = '2';
 // Who can do what:
 //  - Orders: a customer must be signed in. They can ADD an order under their own account (the order number is
 //    the document name, so it can never be overwritten) and read only their own orders.
-//    Only the shop admin (signed in with the admin email) can read all orders or change a status. Nobody can delete.
+//    Only the shop admin (signed in with the admin email) can read all orders, change a status or delete an order.
 //  - Payment screenshots: only the customer who placed that order can add one; only the admin can read or delete them.
 //  - Purchases, sales and expenses (the shop-management pages): only the admin can read or write them.
 //  - Coming-soon products and extra pages: anyone can read the published ones; only the admin can change them.
@@ -277,7 +277,7 @@ service cloud.firestore {
         && request.resource.data.status in ['new', 'confirmed', 'done', 'cancelled']
         && (!('progress' in request.resource.data) || request.resource.data.progress in ['received', 'paid', 'ordering', 'arrived', 'shipped', 'ready', 'done'])
         && optStr(request.resource.data, 'tracking', 60) && optStr(request.resource.data, 'customerNote', 300);
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {

@@ -146,6 +146,18 @@ if (!cfg) {
       .then(() => { tag.textContent = "已儲存，客人可以看到"; })
       .catch(() => { tag.textContent = "儲存失敗，請再試"; });
   });
+  // delete an order: first undo what it caused (sale record, stock, member points), then remove it and its payment screenshots
+  $("#orders").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-del-order]"); if (!b) return;
+    const order = orders.find((o) => o.id === b.dataset.delOrder); if (!order) return;
+    if (!confirm("確定刪除訂單 " + order.orderNo + "（" + order.name + "）？\n\n會同時刪除付款截圖，取消這張單的銷售紀錄、存庫和會員積分。刪除後無法復原。")) return;
+    const tag = b.parentElement.querySelector(".saving"); b.disabled = true; tag.textContent = "刪除中…";
+    try {
+      await Promise.all([shop.syncOrderSale(order, "cancelled"), members.syncOrder(order, "cancelled")]);
+      await Promise.all(proofs.filter((p) => p.orderNo === order.orderNo).map((p) => deleteDoc(doc(db, "proofs", p.id))));
+      await deleteDoc(doc(db, "orders", order.id));
+    } catch (err) { b.disabled = false; tag.textContent = "刪除失敗。請確認已發布最新的安全規則，或稍後再試。"; }
+  });
   $("#csv").addEventListener("click", () => {
     const q = (s) => '"' + String(s == null ? "" : s).replace(/"/g, '""') + '"';
     const rows = [["訂單編號", "時間", "狀態", "姓名", "聯絡方式", "帳戶電郵", "交收方式", "地址", "貨品", "總額(HK$)", "備註"]];
@@ -190,7 +202,7 @@ if (!cfg) {
         (o.address ? "<div><dt>地址</dt><dd>" + esc(o.address) + "</dd></div>" : "") +
         (o.notes ? "<div><dt>備註</dt><dd>" + esc(o.notes) + "</dd></div>" : "") + "</dl>" +
         '<ul class="o-items">' + items + '</ul><div class="o-total"><span>貨品總額（未計運費）</span><span>' + money(o.total) + "</span></div>" + warn +
-        trackHtml(o) + proofHtml(o) + "</article>";
+        trackHtml(o) + proofHtml(o) + '<div class="o-del"><button type="button" class="btn btn-line" data-del-order="' + esc(o.id) + '">刪除訂單</button><span class="saving" aria-live="polite"></span></div></article>';
     }).join("");
   }
 
