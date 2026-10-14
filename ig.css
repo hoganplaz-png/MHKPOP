@@ -1,0 +1,17 @@
+/* IG post maker page. Colours and fonts come from the THEME block in styles.css. */
+.ig { display: grid; grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); gap: 32px; padding-block: 32px; align-items: start; }
+.ig-form { display: flex; flex-direction: column; gap: 14px; background: var(--cream); border-radius: 22px; padding: 26px; box-shadow: var(--shadow-sm); }
+.ig-form h1 { margin: 0; font-size: 24px; font-weight: 900; }
+.ig-back { font-size: 14px; color: var(--muted); text-decoration: none; }
+.ig-hint { margin: 0; font-size: 14px; color: var(--muted); }
+.ig-form label { min-width: 0;  display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.ig-form input:not([type=radio]), .ig-form textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--ground); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; min-width: 0; }
+.ig-form textarea { resize: vertical; line-height: 1.6; }
+.ig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ig-theme { border: 0; padding: 0; margin: 0; display: flex; gap: 18px; align-items: center; }
+.ig-theme legend { font-size: 14px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+.ig-theme label { flex-direction: row; align-items: center; min-height: 44px; color: var(--ink); }
+.ig-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.ig-stage { position: sticky; top: 24px; }
+.ig-stage canvas { display: block; width: 100%; max-width: 640px; height: auto; border-radius: 8px; box-shadow: var(--shadow-lg); }
+@media (max-width: 860px) { .ig { grid-template-columns: 1fr; } .ig-stage { position: static; order: -1; } }

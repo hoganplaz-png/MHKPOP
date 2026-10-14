@@ -10,6 +10,7 @@ import { setupPerks } from "./perks.js";
 import { setupContent } from "./admin-content.js";
 import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
 import { setupProofCheck } from "./proofcheck.js";
+import { igFromProduct } from "./iglib.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
@@ -277,6 +278,7 @@ if (!cfg) {
         '<button type="button" class="btn ' + (p.status === "pending" ? "btn-solid" : "btn-line") + '" data-act="pending">' + (p.status === "pending" ? "已到貨 ✓" : "標記未到貨") + "</button>" +
         '<button type="button" class="icon" data-act="up" aria-label="向上移" ' + (i === 0 ? "disabled" : "") + ">▲</button>" +
         '<button type="button" class="icon" data-act="down" aria-label="向下移" ' + (i === products.length - 1 ? "disabled" : "") + ">▼</button>" +
+        '<button type="button" class="btn btn-line" data-act="ig">IG 帖</button>' +
         '<button type="button" class="btn btn-line" data-act="edit">編輯</button></div></article>';
     }).join("");
   }
@@ -285,6 +287,11 @@ if (!cfg) {
     const b = e.target.closest("[data-act]"); const card = e.target.closest(".prod"); if (!b || !card) return;
     const idx = products.findIndex((p) => p.id === card.dataset.id); if (idx < 0) return;
     if (b.dataset.act === "edit") return openProduct(products[idx]);
+    if (b.dataset.act === "ig") {
+      try { localStorage.setItem("mhkpop-ig", JSON.stringify(igFromProduct(products[idx]))); }
+      catch (err) { localStorage.setItem("mhkpop-ig", JSON.stringify(Object.assign(igFromProduct(products[idx]), { image: "" }))); }
+      return window.open("ig.html", "_blank", "noopener");
+    }
     if (b.dataset.act === "pending") {
       const next = products[idx].status === "pending" ? "ok" : "pending";
       return updateDoc(doc(db, "products", products[idx].id), { status: next }).catch(() => notice("儲存失敗，請再試。"));

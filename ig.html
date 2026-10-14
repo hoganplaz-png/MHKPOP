@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>MHKPOP IG 帖文產生器</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&family=LXGW+WenKai+TC:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ig.css">
+</head>
+<body>
+  <main class="ig wrap">
+    <form class="ig-form" id="ig-form" autocomplete="off">
+      <a class="ig-back" href="admin.html">← 返回網站管理</a>
+      <h1>IG 帖文產生器</h1>
+      <p class="ig-hint">喺網站管理撳商品旁邊嘅「IG 帖」，資料會自動填好。改完撳「下載圖片」，再複製文案貼落 IG。</p>
+      <label>組合<input id="f-group"></label>
+      <label>名稱 / 版本<input id="f-name"></label>
+      <div class="ig-row">
+        <label>價錢 HK$<input id="f-price" inputmode="decimal"></label>
+        <label>原價（可留空）<input id="f-old" inputmode="decimal"></label>
+      </div>
+      <label>標籤<input id="f-tag" placeholder="獨家優惠價 / 期間限定"></label>
+      <label>手寫一句<input id="f-note" value="嗨～快啲嚟搶啦！"></label>
+      <label>實物相<input id="f-photo" type="file" accept="image/*"></label>
+      <fieldset class="ig-theme">
+        <legend>底色</legend>
+        <label><input type="radio" name="theme" value="light" checked> 奶白</label>
+        <label><input type="radio" name="theme" value="dark"> 森林綠</label>
+      </fieldset>
+      <div class="ig-actions">
+        <button type="button" class="btn btn-solid" id="ig-download">下載圖片</button>
+        <button type="button" class="btn btn-line" id="ig-copy">複製文案</button>
+      </div>
+      <label>自動文案<textarea id="f-caption" rows="10"></textarea></label>
+    </form>
+    <div class="ig-stage">
+      <canvas id="ig-canvas" width="1080" height="1350" role="img" aria-label="IG 帖文預覽"></canvas>
+    </div>
+  </main>
+  <script type="module" src="ig.js"></script>
+</body>
+</html>
