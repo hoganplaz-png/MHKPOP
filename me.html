@@ -53,6 +53,24 @@
         <details class="pts-log" id="rw-mine-box" hidden><summary data-t="me.rw.mine">我的兌換</summary><div id="rw-mine"></div></details>
       </section>
 
+      <details class="pts-log me-acct" id="me-acct"><summary data-t="me.acct.h">帳戶資料</summary>
+        <form id="acct-form" novalidate>
+          <label class="mini">
+            <span data-t="me.acct.name">姓名</span>
+            <input class="field" id="acct-name" type="text" maxlength="60" autocomplete="name" required>
+          </label>
+          <label class="mini">
+            <span data-t="me.acct.email">電郵（不能更改）</span>
+            <input class="field" id="acct-email" type="email" readonly>
+          </label>
+          <p class="error" id="acct-msg" role="status" aria-live="polite" hidden></p>
+          <div class="me-acct-actions">
+            <button type="submit" class="btn btn-solid" id="acct-save" data-t="me.acct.save">儲存姓名</button>
+            <button type="button" class="btn btn-line" id="acct-pw" data-t="me.acct.pw">寄出重設密碼電郵</button>
+          </div>
+        </form>
+      </details>
+
       <h2 data-t="me.orders.h">我的訂單</h2>
       <p class="empty" id="me-empty" hidden data-t="me.orders.empty">未有訂單。</p>
       <div id="me-orders"></div>

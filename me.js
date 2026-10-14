@@ -102,7 +102,30 @@
     b.onclick = function () { Notification.requestPermission().then(function () { b.hidden = true; }); };
   }
 
+  // ---------- account details: change the name ----------
+  function acctMsg(text, bad) { var e = $("#acct-msg"); e.textContent = text || ""; e.hidden = !text; e.classList.toggle("ok", !bad); }
+  function setupAcct(user, member) {
+    $("#acct-name").value = (member && member.name) || user.displayName || "";
+    $("#acct-email").value = user.email || "";
+    $("#acct-form").onsubmit = function (ev) {
+      ev.preventDefault();
+      var name = $("#acct-name").value.trim().slice(0, 60), btn = $("#acct-save");
+      if (!name) return acctMsg(T("me.acct.empty"), true);
+      btn.disabled = true; acctMsg("");
+      var fs = client.fs, ref = fs.doc(client.db, "members", user.uid);
+      client.au.updateProfile(user, { displayName: name })
+        .then(function () { return fs.updateDoc(ref, { name: name, updatedAt: fs.serverTimestamp() }); })
+        .then(function () { $("#mc-name").textContent = name; acctMsg(T("me.acct.saved"), false); })
+        .catch(function () { acctMsg(T("me.acct.fail"), true); })
+        .then(function () { btn.disabled = false; });
+    };
+    $("#acct-pw").onclick = function () {
+      client.au.sendPasswordResetEmail(client.auth, user.email).then(function () { acctMsg(T("me.acct.pwSent"), false); }, function () { acctMsg(T("me.acct.fail"), true); });
+    };
+  }
+
   function render(user, member, orders, logs, settingsRaw, L) {
+    setupAcct(user, member);
     var S = L.memberSettings(settingsRaw);
     var spent = member ? Number(member.spent) || 0 : 0, points = member ? Number(member.points) || 0 : 0;
     var info = L.tierFor(S, spent);

@@ -14,13 +14,15 @@
   // ---------- what is in the order ----------
   // cart lines that can still be bought, plus the add-ons the customer ticked
   function lines() {
-    var out = [];
+    var out = [], given = {};
     M.cart.items().forEach(function (x) {
       var p = M.byId(x.id); if (!p || !M.buyable(p)) return;
       var mode = x.mode || M.defMode(p);
       out.push({ p: p, q: x.q, mode: mode, price: M.priceOf(p) });
       M.addonsFor(p).forEach(function (a) {
         var n = Math.min(addonQty[p.id + "|" + a.t.id] || 0, x.q);
+        if (a.max) n = Math.min(n, a.max - (given[a.t.id] || 0));   // 每張訂單只可加購 1 件
+        if (n > 0) given[a.t.id] = (given[a.t.id] || 0) + n;
         if (n > 0) out.push({ p: a.t, q: n, mode: M.defMode(a.t), price: a.price, addon: true, addonOf: p.name });
       });
     });
@@ -72,6 +74,27 @@
     return n;
   }
 
+  // how many of one add-on product are ticked in the whole order (across every main product that offers it)
+  function addonTotal(tid) {
+    var n = 0;
+    Object.keys(addonQty).forEach(function (k) { if (k.split("|")[1] === tid) n += addonQty[k]; });
+    return n;
+  }
+  // Names the first tracked product that the order needs more of than is on the shelf, using the stock numbers in `stockOf` (id -> number or null).
+  function shortage(list, stockOf) {
+    var need = {};
+    list.forEach(function (x) { if (M.tracked(x.p) && x.mode !== "preorder") need[x.p.id] = (need[x.p.id] || 0) + x.q; });
+    var id = Object.keys(need).filter(function (k) { var s = stockOf(k); return typeof s === "number" && need[k] > Math.max(s, 0); })[0];
+    return id ? { p: M.byId(id), n: Math.max(stockOf(id), 0) } : null;
+  }
+  // stock numbers straight from the database, so a stale page cannot oversell
+  function freshStock() {
+    return getDb().then(function (c) {
+      if (!c) return null;
+      return c.fs.getDocs(c.fs.collection(c.db, "products")).then(function (q) { var m = {}; q.docs.forEach(function (d) { m[d.id] = d.data().stock; }); return m; });
+    }).catch(function () { return null; });
+  }
+
   // ---------- step 1: cart ----------
   function renderCart() {
     var items = M.cart.items().filter(function (x) { var p = M.byId(x.id); return p; });
@@ -84,7 +107,7 @@
       var eta = x.mode === "preorder" && p.eta ? '<small class="co-eta">' + esc(T("chan.eta", { eta: p.eta })) + "</small>" : "";
       var addons = ok ? M.addonsFor(p).filter(function (a) { return M.addonAvailable(a.t); }).map(function (a) {
         var n = addonQty[p.id + "|" + a.t.id] || 0;
-        return '<div class="addon-line"><span>' + esc(T("addon.line", { name: a.t.name, price: a.price })) + '</span><div class="qty qty-sm"><button type="button" data-ai="' + esc(p.id) + '" data-at="' + esc(a.t.id) + '" data-d="-1" aria-label="' + esc(T("addon.dec", { name: a.t.name })) + '">−</button><output>' + n + '</output><button type="button" data-ai="' + esc(p.id) + '" data-at="' + esc(a.t.id) + '" data-d="1" aria-label="' + esc(T("addon.inc", { name: a.t.name })) + '">+</button></div></div>';
+        return '<div class="addon-line"><span>' + esc(T("addon.line", { name: a.t.name, price: a.price })) + (a.max ? " · " + esc(T("addon.onlyOne")) : "") + '</span><div class="qty qty-sm"><button type="button" data-ai="' + esc(p.id) + '" data-at="' + esc(a.t.id) + '" data-d="-1" aria-label="' + esc(T("addon.dec", { name: a.t.name })) + '">−</button><output>' + n + '</output><button type="button" data-ai="' + esc(p.id) + '" data-at="' + esc(a.t.id) + '" data-d="1" aria-label="' + esc(T("addon.inc", { name: a.t.name })) + '">+</button></div></div>';
       }).join("") : "";
       return '<div class="co-line' + (ok ? "" : " is-off") + '"><a class="cart-thumb" href="' + esc(M.url(p)) + '" style="' + M.toneStyle(i) + '">' + M.sleeveInner(p) + "</a>" +
         '<div class="co-info"><span class="caps">' + esc(p.group) + '</span><a href="' + esc(M.url(p)) + '">' + esc(p.name) + "</a>" +
@@ -113,7 +136,9 @@
     if (ab) {
       var id = ab.dataset.ai, t = M.byId(ab.dataset.at), key = id + "|" + ab.dataset.at, d = +ab.dataset.d;
       var next = Math.max(0, (addonQty[key] || 0) + d);
+      var cfg = M.addonsFor(M.byId(id)).filter(function (a) { return a.t.id === ab.dataset.at; })[0];
       if (d > 0 && next > M.cart.qty(id)) return showErr("#err1", T("addon.limit"));
+      if (d > 0 && cfg && cfg.max && addonTotal(ab.dataset.at) >= cfg.max) return showErr("#err1", T("addon.one", { name: t.name }));
       if (d > 0 && t && M.tracked(t) && usedOf(t.id) >= t.stock) return showErr("#err1", T("err.stock", { name: t.name, n: Math.max(t.stock, 0) }));
       if (next) addonQty[key] = next; else delete addonQty[key];
       showErr("#err1", ""); return renderCart();
@@ -124,6 +149,7 @@
     else {
       var before = M.cart.qty(pid);
       M.cart.set(pid, before + dd, null, "co");
+      if (dd > 0 && p && M.tracked(p) && M.cart.mode(pid) !== "preorder" && usedOf(pid) > p.stock) M.cart.set(pid, before, null, "co");   // add-ons of the same product use stock too
       if (dd > 0 && M.cart.qty(pid) === before && p) showErr("#err1", T("err.stock", { name: p.name, n: Math.max(p.stock || 0, 0) })); else showErr("#err1", "");
     }
     trimAddons();
@@ -147,10 +173,8 @@
   $("#to2").addEventListener("click", function () {
     var list = lines();
     if (!list.length) return showErr("#err1", T("err.items"));
-    var need = {};
-    list.forEach(function (x) { if (M.tracked(x.p) && x.mode !== "preorder") need[x.p.id] = (need[x.p.id] || 0) + x.q; });
-    var short = Object.keys(need).filter(function (id) { return need[id] > Math.max(M.byId(id).stock, 0); })[0];
-    if (short) return showErr("#err1", T("err.stock", { name: M.byId(short).name, n: Math.max(M.byId(short).stock, 0) }));
+    var short = shortage(list, function (id) { return M.byId(id).stock; });
+    if (short) return showErr("#err1", T("err.stock", { name: short.p.name, n: short.n }));
     showErr("#err1", ""); syncForm(); go(2);
   });
   $("#back1").addEventListener("click", function () { go(1); });
@@ -253,13 +277,21 @@
       items: list.map(function (x) { var it = { group: x.p.group, name: x.p.name, price: x.price, qty: x.q, mode: x.mode }; if (x.addon) { it.addon = true; it.addonOf = x.addonOf; } return it; })
     };
     var btn = $("#submit"); pending = true; btn.disabled = true; btn.textContent = T("review.sending");
-    sendOrder(o).then(function () {
+    freshStock().then(function (fresh) {
+      var short = fresh && shortage(list, function (id) { return id in fresh ? fresh[id] : M.byId(id).stock; });
+      if (short) {
+        short.p.stock = short.n; M.cart.set(short.p.id, Math.min(M.cart.qty(short.p.id), short.n), null, "co"); trimAddons(); renderCart();
+        var e = new Error("stock"); e.stock = short; throw e;
+      }
+      return sendOrder(o);
+    }).then(function () {
       try { sessionStorage.setItem("mh-order", JSON.stringify({ orderNo: o.orderNo, total: o.total, contact: o.contact, delivery: o.delivery, address: o.address, name: o.name, items: o.items })); } catch (err) { /* the payment page also reads the order number and amount from the address */ }
       M.cart.clear();
       location.href = "pay.html?o=" + encodeURIComponent(o.orderNo) + "&t=" + o.total;
     }).catch(function (err) {
       pending = false; btn.disabled = false; btn.textContent = T("co.place");
-      if (err && err.message === "login") { window.MHA.open("in"); showErr("#err2", T("err.login")); }
+      if (err && err.stock) { go(1); showErr("#err1", T("err.stock", { name: err.stock.p.name, n: err.stock.n })); }
+      else if (err && err.message === "login") { window.MHA.open("in"); showErr("#err2", T("err.login")); }
       else { if (applied) dropCode(T("co.code.invalid")); showErr("#err2", T("err.submit", { ig: S.instagram })); }
     });
   });

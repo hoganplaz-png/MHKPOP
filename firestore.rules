@@ -281,11 +281,19 @@ service cloud.firestore {
         && getAfter(red).data.uid == uid
         && n.points >= 0 && n.points == o.points - getAfter(red).data.points;
     }
+    // A member may change their OWN name (and nothing else): the document must already exist and points / spent stay as they are.
+    function validMemberName(uid) {
+      let n = request.resource.data;
+      return verified() && request.auth.uid == uid
+        && n.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt'])
+        && n.name is string && n.name.size() > 0 && n.name.size() <= 60
+        && n.updatedAt == request.time;
+    }
     match /members/{uid} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
       allow create: if validMemberSelf(uid) || (isAdmin() && validMemberAdmin());
-      allow update: if (isAdmin() && validMemberAdmin()) || validMemberRedeem(uid);
+      allow update: if (isAdmin() && validMemberAdmin()) || validMemberRedeem(uid) || validMemberName(uid);
       allow delete: if isAdmin();
     }
     function validPointLog() {

@@ -92,7 +92,7 @@
   function byId(id) { return all.filter(function (p) { return p.id === id; })[0]; }
   function indexOf(p) { return all.indexOf(p); }
   function addonsFor(p) {
-    return (p.addons || []).map(function (a) { var t = byId(a.id); return t ? { t: t, price: Number(a.price) || 0 } : null; }).filter(Boolean);
+    return (p.addons || []).map(function (a) { var t = byId(a.id); return t ? { t: t, price: Number(a.price) || 0, max: Number(a.max) === 1 ? 1 : 0 } : null; }).filter(Boolean);
   }
 
   // ---------- product card (home page price list, related products) ----------
@@ -101,7 +101,7 @@
     if (c.indexOf("preorder") >= 0 && p.eta) h += '<span class="eta">' + esc(T("chan.eta", { eta: p.eta })) + "</span>";
     if (tracked(p) && p.stock > 0 && p.stock <= 5 && c.indexOf("stock") >= 0) h += '<span class="eta low">' + esc(T("shelf.left", { n: p.stock })) + "</span>";
     var ad = addonsFor(p).filter(function (a) { return addonAvailable(a.t); });
-    return '<div class="chans">' + h + "</div>" + (ad.length ? '<div class="addon-note">' + ad.map(function (a) { return esc(T("addon.card", { name: a.t.name, price: a.price })); }).join("<br>") + "</div>" : "");
+    return '<div class="chans">' + h + "</div>" + (ad.length ? '<div class="addon-note">' + ad.map(function (a) { return esc(T("addon.card", { name: a.t.name, price: a.price }) + (a.max ? " · " + T("addon.onlyOne") : "")); }).join("<br>") + "</div>" : "");
   }
   // n = position in the grid (for the staggered entrance)
   function cardHtml(p, n) {

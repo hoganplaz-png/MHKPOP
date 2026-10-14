@@ -349,7 +349,8 @@ if (!cfg) {
   function addAddonRow(a) {
     const opts = products.filter((x) => !editing || x.id !== editing.id).map((x) => '<option value="' + esc(x.id) + '"' + (a && a.id === x.id ? " selected" : "") + ">" + esc(x.group + " " + x.name) + "（" + money(x.price) + "）</option>").join("");
     $("#p-addons").insertAdjacentHTML("beforeend", '<div class="addon-row"><label class="mini grow">加購商品<select class="field ad-prod">' + opts + '</select></label>' +
-      '<label class="mini">加購價（HK$）<input class="field ad-price" type="number" min="0" step="any" inputmode="decimal" value="' + esc(a ? a.price : "") + '"></label><button type="button" class="icon ad-del" aria-label="移除">✕</button></div>');
+      '<label class="mini">加購價（HK$）<input class="field ad-price" type="number" min="0" step="any" inputmode="decimal" value="' + esc(a ? a.price : "") + '"></label>' +
+      '<label class="mini">數量限制<select class="field ad-max"><option value="">不限（最多等於主商品數量）</option><option value="1"' + (a && Number(a.max) === 1 ? " selected" : "") + '>每張訂單只可加購 1 件</option></select></label><button type="button" class="icon ad-del" aria-label="移除">✕</button></div>');
   }
   $("#p-addon-add").addEventListener("click", () => { if (products.filter((x) => !editing || x.id !== editing.id).length) addAddonRow(null); else { $("#p-error").textContent = "請先建立其他商品，才可以設定加購。"; $("#p-error").hidden = false; } });
   $("#p-addons").addEventListener("click", (e) => { const d = e.target.closest(".ad-del"); if (d) d.closest(".addon-row").remove(); });
@@ -389,8 +390,8 @@ if (!cfg) {
     err.hidden = true; btn.disabled = true; btn.textContent = "儲存中…";
     const stockRaw = $("#p-stock").value.trim();
     const aliases = [...new Set($("#p-aliases").value.split("\n").map((x) => x.trim()).filter(Boolean))].slice(0, 30);
-    const addons = [...document.querySelectorAll("#p-addons .addon-row")].map((r) => ({ id: r.querySelector(".ad-prod").value, price: Number(r.querySelector(".ad-price").value) }))
-      .filter((a) => a.id && Number.isFinite(a.price) && a.price >= 0);
+    const addons = [...document.querySelectorAll("#p-addons .addon-row")].map((r) => ({ id: r.querySelector(".ad-prod").value, price: Number(r.querySelector(".ad-price").value), max: r.querySelector(".ad-max").value }))
+      .filter((a) => a.id && Number.isFinite(a.price) && a.price >= 0).map((a) => (a.max === "1" ? { id: a.id, price: a.price, max: 1 } : { id: a.id, price: a.price }));
     const data = { group, name, price, tag: $("#p-tag").value.trim(), image: photo, status: $("#p-status").value, channels, eta: $("#p-eta").value.trim(), aliases, addons };
     const saleRaw = $("#p-sale").value.trim();
     if (saleRaw !== "") { const sp = Number(saleRaw); if (!Number.isFinite(sp) || sp < 0) { err.textContent = "特價請填寫正確的數字。"; err.hidden = false; btn.disabled = false; btn.textContent = "儲存"; return; } data.salePrice = sp; data.saleEnds = $("#p-saleends").value; }
