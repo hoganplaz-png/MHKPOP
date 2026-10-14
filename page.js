@@ -23,7 +23,7 @@
 
   function productCard(p) {
     var n = priceOf(p), o = Number(p.price) || 0;
-    var sold = p.status === "sold" || (typeof p.stock === "number" && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true));
+    var sold = p.status === "sold" || (typeof p.stock === "number" && p.stock <= 0);
     var im = img(p.image);
     return '<a class="pcard reveal' + (sold ? " is-sold" : "") + '" href="/checkout.html"><div class="pc-img">' + (im ? '<img src="' + esc(im) + '" alt="' + esc(p.group + " " + p.name) + '" loading="lazy">' : '<div class="soon-ph">' + esc(p.group) + "</div>") + (n < o ? '<span class="tag">' + esc(T("shelf.saleTag")) + "</span>" : "") + "</div>" +
       '<div class="pc-body"><span class="caps">' + esc(p.group) + "</span><b>" + esc(p.name) + '</b><span class="price">' + (n < o ? '<s class="was">' + money(o) + "</s> " : "") + money(n) + "</span>" +
