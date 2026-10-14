@@ -56,7 +56,7 @@
 @keyframes me-alert-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .me-acct form { display: grid; gap: var(--space-3, 16px); padding: var(--space-3, 16px) 0; max-width: 420px; }
 .me-acct .mini { display: grid; gap: 6px; }
-.me-acct .error.ok { color: var(--ok, #1f7a4d); }
+.me-acct .error.ok { background: transparent; padding: 0; color: var(--ink, #12251f); font-weight: 600; }
 .me-acct-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 @media (prefers-reduced-motion: reduce) { .me-alert { animation: none; } }
 
