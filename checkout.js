@@ -83,7 +83,7 @@
   // Names the first tracked product that the order needs more of than is on the shelf, using the stock numbers in `stockOf` (id -> number or null).
   function shortage(list, stockOf) {
     var need = {};
-    list.forEach(function (x) { if (M.tracked(x.p) && x.mode !== "preorder") need[x.p.id] = (need[x.p.id] || 0) + x.q; });
+    list.forEach(function (x) { if (M.tracked(x.p)) need[x.p.id] = (need[x.p.id] || 0) + x.q; });
     var id = Object.keys(need).filter(function (k) { var s = stockOf(k); return typeof s === "number" && need[k] > Math.max(s, 0); })[0];
     return id ? { p: M.byId(id), n: Math.max(stockOf(id), 0) } : null;
   }
@@ -149,7 +149,7 @@
     else {
       var before = M.cart.qty(pid);
       M.cart.set(pid, before + dd, null, "co");
-      if (dd > 0 && p && M.tracked(p) && M.cart.mode(pid) !== "preorder" && usedOf(pid) > p.stock) M.cart.set(pid, before, null, "co");   // add-ons of the same product use stock too
+      if (dd > 0 && p && M.tracked(p) && usedOf(pid) > p.stock) M.cart.set(pid, before, null, "co");   // add-ons of the same product use stock too
       if (dd > 0 && M.cart.qty(pid) === before && p) showErr("#err1", T("err.stock", { name: p.name, n: Math.max(p.stock || 0, 0) })); else showErr("#err1", "");
     }
     trimAddons();

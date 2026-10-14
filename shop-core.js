@@ -39,8 +39,8 @@
   }
   function hasSource(p) { var c = chOf(p); return c.indexOf("stock") >= 0 || c.indexOf("preorder") >= 0; }
   function defMode(p) { var c = chOf(p); return c.indexOf("stock") >= 0 ? "stock" : c.indexOf("preorder") >= 0 ? "preorder" : "sf"; }
-  // a product with a stock number sells out by itself at 0 (pre-order products keep selling)
-  function stockOut(p) { return tracked(p) && p.stock <= 0 && (Array.isArray(p.channels) ? p.channels.indexOf("preorder") < 0 : true); }
+  // a product with a stock number sells out by itself at 0, and no order can go over it (pre-orders included)
+  function stockOut(p) { return tracked(p) && p.stock <= 0; }
   function kindOf(p) {
     var s = (p.status || "").toLowerCase();
     if (s === "hidden" || s.indexOf("隱藏") >= 0) return "hidden";
@@ -134,7 +134,7 @@
   }
   function line(id) { return items.filter(function (x) { return x.id === id; })[0]; }
   // largest quantity allowed for a product (stock limit unless it is pre-ordered)
-  function maxQty(p, mode) { return !tracked(p) || mode === "preorder" ? 99 : Math.max(0, p.stock); }
+  function maxQty(p, mode) { return !tracked(p) ? 99 : Math.max(0, p.stock); }
   var cart = {
     items: function () { return items.slice(); },
     qty: function (id) { var l = line(id); return l ? l.q : 0; },
