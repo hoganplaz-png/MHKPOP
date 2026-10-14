@@ -17,9 +17,32 @@
     $("#pd-add").disabled = $("#pd-bar-add").disabled = room() <= 0;
   }
 
+  // Per-product SEO: canonical, description, share tags and Product structured data (set after the product loads).
+  function seo() {
+    var url = "https://mhkpop.web.app/product?id=" + encodeURIComponent(p.id), title = document.title;
+    var desc = p.group + " " + p.name + "｜將軍澳韓國 K-POP 專輯專賣店 MHKPOP，網上落單，可選順豐到付或門市自取。";
+    function meta(sel, make, val, attr) {
+      var el = document.head.querySelector(sel);
+      if (!el) { el = document.createElement(make); document.head.appendChild(el); }
+      return el;
+    }
+    var can = meta('link[rel="canonical"]', "link"); can.rel = "canonical"; can.href = url;
+    var d = meta('meta[name="description"]', "meta"); d.name = "description"; d.content = desc;
+    [["og:title", title], ["og:description", desc], ["og:url", url], ["og:type", "product"]].forEach(function (kv) {
+      var m = meta('meta[property="' + kv[0] + '"]', "meta"); m.setAttribute("property", kv[0]); m.content = kv[1];
+    });
+    var ld = document.createElement("script"); ld.type = "application/ld+json";
+    ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "Product", name: p.group + " " + p.name, brand: p.group, url: url,
+      image: "https://mhkpop.web.app/assets/logo-tile.jpg",
+      offers: { "@type": "Offer", priceCurrency: "HKD", price: String(M.priceOf(p)), url: url,
+        availability: M.buyable(p) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock" } });
+    document.head.appendChild(ld);
+  }
+
   function render() {
     var k = M.kindOf(p), can = M.buyable(p), off = M.offPct(p), tag = M.tagOf(p);
     document.title = "MHKPOP｜" + p.group + " " + p.name;
+    seo();
     $("#pd-crumb").textContent = p.name;
     var sl = $("#pd-sleeve");
     sl.setAttribute("style", M.toneStyle(M.indexOf(p))); sl.innerHTML = M.sleeveInner(p);
