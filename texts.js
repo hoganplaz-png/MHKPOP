@@ -165,6 +165,7 @@
     "acct.verify.resend": "重新寄出驗證電郵",
     "acct.verify.done": "我已驗證電郵",
     "acct.verify.notyet": "仍未驗證，請先按電郵內的連結。",
+    "acct.verify.spam": "驗證電郵已寄出（寄件人：MHKPOP）。如收件箱找不到，請檢查「垃圾郵件」，並按「不是垃圾郵件」，之後電郵會正常收到。",
     "acct.verify.sent": "我們已寄出驗證電郵，請查看收件箱及垃圾郵件。",
 
     // ----- 結帳 -----

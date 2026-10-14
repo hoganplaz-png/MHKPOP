@@ -90,6 +90,7 @@
       $("#acct-verify").insertAdjacentElement("afterend", box);
       again.addEventListener("click", function () {
         if (!client || !A.user) return;
+        try { client.auth.languageCode = "zh-HK"; } catch (x) {}
         client.au.sendEmailVerification(A.user).then(function () { again.textContent = T("acct.verify.sent"); }, function () { again.textContent = T("acct.err.many"); });
       });
       done.addEventListener("click", function () {
@@ -136,6 +137,7 @@
     if (up && !$("#a-agree").checked) return showErr(T("acct.err.agree"));
     btn.disabled = true; btn.textContent = T("acct.busy");
     var au = client.au, job;
+    try { client.auth.languageCode = "zh-HK"; } catch (x) {} // Chinese template, so the mail reads as ours not a generic English one
     if (up) {
       job = au.createUserWithEmailAndPassword(client.auth, email, pw).then(function (cred) {
         return au.updateProfile(cred.user, { displayName: name }).catch(function () {}).then(function () {
@@ -146,7 +148,9 @@
       job = au.signInWithEmailAndPassword(client.auth, email, pw);
     }
     job.then(function () {
-      $("#a-pw").value = ""; A.close();
+      $("#a-pw").value = "";
+      // right after sign-up keep the dialog open on the verify panel, so the spam-folder tip is seen
+      if (up && A.user && !A.user.emailVerified) { open(); $("#acct-verify").textContent = T("acct.verify.spam"); } else A.close();
     }).catch(function (err) { showErr(errText(err)); })
       .then(function () { btn.disabled = false; btn.textContent = T(up ? "acct.submit.up" : "acct.submit.in"); });
   });
