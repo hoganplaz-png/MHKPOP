@@ -260,11 +260,12 @@
       });
       return;
     }
-    var name = $("#f-name").value.trim(), contact = $("#f-contact").value.trim(), address = $("#f-address").value.trim();
+    var name = $("#f-name").value.trim(), ig = $("#f-ig").value.trim(), phone = $("#f-phone").value.trim(), address = $("#f-address").value.trim();
     var notes = $("#f-notes").value.trim(), d = curDelivery(), list = lines(), r = curRadio();
     if (!list.length) { go(1); return showErr("#err1", T("err.items")); }
     if (!name) return showErr("#err2", T("err.name"));
-    if (!contact) return showErr("#err2", T("err.contact"));
+    if (!ig || !phone) return showErr("#err2", T("err.contact"));
+    var contact = "Instagram: " + ig + " / 電話: " + phone;
     if (!r || r.disabled) return showErr("#err2", T("err.mixed"));
     if (!d.pickup && !address) return showErr("#err2", T("err.address"));
     if (!$("#f-agree").checked) return showErr("#err2", T("err.agree"));

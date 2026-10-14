@@ -118,7 +118,9 @@
     // ----- 落單表格訊息 -----
     "err.login": "請先登入或註冊，才可以落單。",
     "err.name": "請填寫姓名。",
-    "err.contact": "請填寫 Instagram 帳號或電話，方便我們聯絡你。",
+    "err.contact": "請填寫 Instagram 帳號和電話號碼，方便我們聯絡你。",
+    "form.ig": "Instagram",
+    "form.phone": "電話號碼",
     "err.items": "請最少揀選一款貨品。",
     "err.address": "請填寫收件地址。",
     "co.code.l": "優惠碼",
