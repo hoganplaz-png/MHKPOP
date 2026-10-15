@@ -9,7 +9,7 @@ import { setupMembers } from "./members.js";
 import { setupPerks } from "./perks.js";
 import { setupContent } from "./admin-content.js";
 import { PROGRESS, progressKey, effectivePrice } from "./shoplib.js";
-import { setupProofCheck } from "./proofcheck.js";
+import { setupProofCheck, gate } from "./proofcheck.js";
 
 const $ = (s) => document.querySelector(s);
 const ORDER_STATUS = { new: "新訂單", confirmed: "已確認", done: "已完成", cancelled: "已取消" };
@@ -128,13 +128,24 @@ if (!cfg) {
   $("#search").addEventListener("input", renderOrders);
   $("#orders").addEventListener("change", (e) => {
     const sel = e.target.closest("select[data-id]"); if (!sel) return;
-    const tag = sel.parentElement.querySelector(".saving");
+    const order = orders.find((o) => o.id === sel.dataset.id), status = sel.value;
+    // confirming an order needs a payment screenshot that passed the automatic check (or the owner's explicit OK)
+    if (status === "confirmed" && order.status === "new") {
+      const g = gate(checksOf(order).map((x) => x.r));
+      if (g.verdict !== "ok") { sel.value = order.status; askConfirm(order, g, () => saveStatus(order, status)); return; }
+    }
+    saveStatus(order, status);
+  });
+  function saveStatus(order, status) {
+    // look the status box up again: the list may have been redrawn while the dialog was open
+    const box = document.getElementById("s-" + order.id), tag = (box && box.parentElement.querySelector(".saving")) || document.createElement("span");
+    if (box) box.value = status;
     tag.textContent = "儲存中…";
-    const order = orders.find((o) => o.id === sel.dataset.id), status = sel.value, upd = { status };
+    const upd = { status };
     // keep the customer-visible progress in step with the status
     if (status === "confirmed" && (!order.progress || order.progress === "received")) upd.progress = "paid";
     if (status === "done") upd.progress = "done";
-    updateDoc(doc(db, "orders", sel.dataset.id), upd)
+    updateDoc(doc(db, "orders", order.id), upd)
       .then(() => {
         tag.textContent = "已儲存";
         // confirmed / done = a sale: stock goes down and the member gets points. cancelled = both are put back.
@@ -142,7 +153,20 @@ if (!cfg) {
         return Promise.all([shop.syncOrderSale(next, status), members.syncOrder(next, status)]);
       })
       .catch(() => { tag.textContent = "儲存失敗，請再試"; });
-  });
+  }
+  // the dialog that stops a confirmation until the screenshot check is OK
+  let gateGo = null;
+  function askConfirm(order, g, go) {
+    gateGo = g.verdict === "wait" ? null : go;
+    $("#gatedlg-title").textContent = g.verdict === "wait" ? "付款截圖仍在核對中" : "付款截圖未通過自動核對";
+    $("#gatedlg-order").textContent = order.orderNo + " · " + money(order.total);
+    $("#gatedlg-list").innerHTML = g.reasons.map((r) => "<li>" + esc(r) + "</li>").join("");
+    $("#gatedlg-hint").textContent = g.verdict === "wait" ? "請稍等幾秒，核對完成後再按一次。" : "請先在 PayMe／Alipay 確認真的收到 " + money(order.total) + "，才按「仍然確認」。";
+    $("#gatedlg-go").hidden = g.verdict === "wait";
+    $("#gatedlg").showModal();
+  }
+  $("#gatedlg-go").addEventListener("click", () => { $("#gatedlg").close(); const f = gateGo; gateGo = null; if (f) f(); });
+  $("#gatedlg-cancel").addEventListener("click", () => { gateGo = null; $("#gatedlg").close(); });
   // progress, SF tracking number and a note the customer sees on their order page
   $("#orders").addEventListener("click", (e) => {
     const b = e.target.closest("[data-save-track]"); if (!b) return;

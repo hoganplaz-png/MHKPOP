@@ -1,6 +1,6 @@
 // Run with: node tests/proofcheck.test.mjs
 import assert from "node:assert/strict";
-import { findAmounts, findDates, findRefs, hasOrderNo, judge } from "../proofcheck.js";
+import { findAmounts, findDates, findRefs, hasOrderNo, judge, gate } from "../proofcheck.js";
 
 const order = { orderNo: "MH-K7Q2XZ", total: 268, createdAt: new Date(2026, 9, 12, 21, 5) };
 const proof = { createdAt: new Date(2026, 9, 13, 9, 0) };
@@ -61,4 +61,13 @@ assert.equal(r.status, "pass");
 // unreadable
 assert.equal(judge(order, proof, { text: "  ~ " }, []).status, "review");
 assert.deepEqual(findRefs(payme, [order.orderNo]), ["2610122114PM88317265".replace(/O/g,"0")]);
+// gate: confirming needs one passing screenshot
+const pass = { state: "done", status: "pass", checks: [] };
+const fail = { state: "done", status: "review", checks: [{ state: "bad", text: "金額不符" }, { state: "ok", text: "x" }] };
+assert.equal(gate([pass]).verdict, "ok");
+assert.equal(gate([fail, pass]).verdict, "ok");
+assert.equal(gate([]).verdict, "review");
+assert.equal(gate([{ state: "pending" }]).verdict, "wait");
+assert.equal(gate([fail, { state: "pending" }]).verdict, "wait");
+assert.deepEqual(gate([fail, { state: "error" }]).reasons, ["金額不符", "無法自動讀取截圖"]);
 console.log("proofcheck: all tests passed");
