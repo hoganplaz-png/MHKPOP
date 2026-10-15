@@ -58,6 +58,8 @@ When you open the 訂單 tab, the admin page reads every payment screenshot (Eng
 | 訂單編號 | the order number appears on the screenshot (for example in the PayMe message) | shown for information only, since many customers leave the message empty |
 | 重用截圖 | — | flagged when the same image, or the same transaction number, was already uploaded for another order (only the later upload is flagged) |
 
+**Before confirming:** changing a new order to 已確認 needs a screenshot that passed every check. If there is no screenshot, none passed, or the reader failed, a box lists the reasons and asks you to check PayMe／Alipay first; you can press 仍然確認 to go ahead anyway, or 返回 to leave the order as it is. While a screenshot is still being read you are asked to wait a few seconds. Other status changes (已完成, 已取消) are not blocked.
+
 Limits:
 - It never confirms an order by itself. A screenshot can be edited, so a green result means "the screenshot matches", not "the money arrived". Still check your PayMe or Alipay app before pressing 已確認.
 - The reading happens in your browser (no outside service; the reader is in `vendor/tesseract`). The first time it downloads about 6 MB, then a few seconds per screenshot. Results are remembered in that browser, so another computer reads the screenshots again.

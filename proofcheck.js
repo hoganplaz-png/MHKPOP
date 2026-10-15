@@ -118,6 +118,22 @@ export function judge(order, proof, read, others) {
   return { status: checks.some((c) => c.state === "bad") ? "review" : "pass", checks };
 }
 
+// Decides whether an order may be confirmed. `states` are the results from resultFor() for the order's screenshots.
+//   "ok"      at least one screenshot passed every check
+//   "wait"    some screenshot is still being read
+//   "review"  there is no screenshot, or none passed: the owner may still confirm after reading the reasons
+export function gate(states) {
+  if (states.some((r) => r.state === "done" && r.status === "pass")) return { verdict: "ok", reasons: [] };
+  if (states.some((r) => r.state === "pending")) return { verdict: "wait", reasons: ["自動核對仍在進行中"] };
+  if (!states.length) return { verdict: "review", reasons: ["客人未有上傳付款截圖"] };
+  const reasons = [];
+  states.forEach((r) => {
+    if (r.state === "error") reasons.push("無法自動讀取截圖");
+    else (r.checks || []).filter((c) => c.state === "bad").forEach((c) => reasons.push(c.text));
+  });
+  return { verdict: "review", reasons: [...new Set(reasons)] };
+}
+
 // ---------- running the reader in the admin's browser ----------
 
 const cacheGet = (id) => {
